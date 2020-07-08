@@ -1,0 +1,139 @@
+
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: '2'
+
+volumes:
+
+  peer0.sdfsdfsdf.com: 
+  peer0.adada.com: 
+  peer1.adada.com: 
+  peer0.adadad.com: 
+  peer1.adadad.com: 
+
+networks:
+  byfn:
+services:
+
+  
+  ca:
+    image: hyperledger/fabric-ca:$IMAGE_TAG
+    restart: always
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-sdfsdfsdf.com
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/sdfsdfsdf.com-cert.pem
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
+    ports:
+      - "6057:7054"
+    command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/sdfsdfsdf.com-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY -b admin:adminpw -d'
+    volumes:
+      - ./crypto-config/peerOrganizations/sdfsdfsdf.com/ca/:/etc/hyperledger/fabric-ca-server-config
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    container_name: sdfsdfsdf.com
+    networks:
+      - byfn
+                
+  ca1:
+    image: hyperledger/fabric-ca:$IMAGE_TAG
+    restart: always
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-adada.com
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/adada.com-cert.pem
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
+    ports:
+      - "6055:7054"
+    command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/adada.com-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY -b admin:adminpw -d'
+    volumes:
+      - ./crypto-config/peerOrganizations/adada.com/ca/:/etc/hyperledger/fabric-ca-server-config
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    container_name: adada.com
+    networks:
+      - byfn
+                
+  ca2:
+    image: hyperledger/fabric-ca:$IMAGE_TAG
+    restart: always
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-adadad.com
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/adadad.com-cert.pem
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
+    ports:
+      - "6056:7054"
+    command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/adadad.com-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY -b admin:adminpw -d'
+    volumes:
+      - ./crypto-config/peerOrganizations/adadad.com/ca/:/etc/hyperledger/fabric-ca-server-config
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    container_name: adadad.com
+    networks:
+      - byfn
+                
+
+  
+  peer0.sdfsdfsdf.com:
+    container_name: peer0.sdfsdfsdf.com
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.sdfsdfsdf.com
+    networks:
+      - byfn
+                    
+  orderer.sdfsdfsdf.com:
+    container_name: orderer.sdfsdfsdf.com
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: orderer.sdfsdfsdf.com
+    networks:
+      - byfn
+                    
+  peer0.adada.com:
+    container_name: peer0.adada.com
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.adada.com
+    networks:
+      - byfn
+                    
+  peer1.adada.com:
+    container_name: peer1.adada.com
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer1.adada.com
+    networks:
+      - byfn
+                    
+  peer0.adadad.com:
+    container_name: peer0.adadad.com
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.adadad.com
+    networks:
+      - byfn
+                    
+  peer1.adadad.com:
+    container_name: peer1.adadad.com
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer1.adadad.com
+    networks:
+      - byfn
+                    
+
+        

@@ -1,0 +1,95 @@
+
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: '2'
+
+volumes:
+
+  orderer2.sdfsdfsdf.com: 
+  orderer3.sdfsdfsdf.com: 
+  orderer4.sdfsdfsdf.com: 
+  orderer5.sdfsdfsdf.com: 
+
+networks:
+  byfn:
+
+services:
+
+  
+  orderer2.sdfsdfsdf.com:
+    extends:
+      file: base/peer-base.yaml
+      service: orderer-base
+    container_name: orderer2.sdfsdfsdf.com
+    restart: always
+    networks:
+    - byfn
+    volumes:
+        - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer2.sdfsdfsdf.com/msp:/var/hyperledger/orderer/msp
+        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer2.sdfsdfsdf.com/tls/:/var/hyperledger/orderer/tls
+        - orderer2.sdfsdfsdf.com:/var/hyperledger/production/orderer
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+    ports:
+    - 7056:7054
+  
+  orderer3.sdfsdfsdf.com:
+    extends:
+      file: base/peer-base.yaml
+      service: orderer-base
+    container_name: orderer3.sdfsdfsdf.com
+    restart: always
+    networks:
+    - byfn
+    volumes:
+        - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer3.sdfsdfsdf.com/msp:/var/hyperledger/orderer/msp
+        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer3.sdfsdfsdf.com/tls/:/var/hyperledger/orderer/tls
+        - orderer3.sdfsdfsdf.com:/var/hyperledger/production/orderer
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+    ports:
+    - 7057:7054
+  
+  orderer4.sdfsdfsdf.com:
+    extends:
+      file: base/peer-base.yaml
+      service: orderer-base
+    container_name: orderer4.sdfsdfsdf.com
+    restart: always
+    networks:
+    - byfn
+    volumes:
+        - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer4.sdfsdfsdf.com/msp:/var/hyperledger/orderer/msp
+        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer4.sdfsdfsdf.com/tls/:/var/hyperledger/orderer/tls
+        - orderer4.sdfsdfsdf.com:/var/hyperledger/production/orderer
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+    ports:
+    - 7058:7054
+  
+  orderer5.sdfsdfsdf.com:
+    extends:
+      file: base/peer-base.yaml
+      service: orderer-base
+    container_name: orderer5.sdfsdfsdf.com
+    restart: always
+    networks:
+    - byfn
+    volumes:
+        - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer5.sdfsdfsdf.com/msp:/var/hyperledger/orderer/msp
+        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer5.sdfsdfsdf.com/tls/:/var/hyperledger/orderer/tls
+        - orderer5.sdfsdfsdf.com:/var/hyperledger/production/orderer
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+    ports:
+    - 7059:7054
+  
+
+        

@@ -1,0 +1,490 @@
+#!/usr/bin/python3
+
+'''
+@author : Fangnikoue Komabou Ayao
+@email  : malevae@gmail.com
+'''
+import yaml
+import re
+import subprocess
+import os
+from sys import exit
+import requests
+from optparse import OptionParser
+from requests.exceptions import ConnectionError
+
+# Class that reprersent the Hyperledger Fabric
+# network setting
+
+
+class HyFabricPyConfigTx():
+    pass
+
+
+class HyFabricPyCa():
+
+    def __init__(self, config_data):
+        self.config_data = config_data
+
+    def getPort(self):
+        return self.config_data.get("ports")[0]
+
+    def getOrgCredentials(self):
+        # return re.findall("\-b[a-zA-Z0-9 : \-]+",self.command)
+        return (re.findall("\-b(.*)\-d", self.command)[0]).strip().split(":")
+
+    def getCaEnvName(self):
+        env = self.config_data.get("environment")
+        if env:
+            ca_name = re.findall(
+                "FABRIC_CA_SERVER_CA_NAME=[A-Za-z0-9\._-]+", " ".join(env))
+
+            return (re.findall("[A-Za-z0-9\._-]+$", ca_name[0]))[0]
+
+    def getHostPortName(self):
+        return re.findall('\d+', self.getPort())[0]
+
+    def getServicePortName(self):
+        return re.findall('\d+', self.getPort())[1]
+
+    def __getattr__(self, item):
+        if self.config_data:
+            value = self.config_data.get(item)
+            if value:
+                return value
+        return None
+
+
+class HyFabricPeerPy():
+    def __init__(self, config_data):
+        self.config_data = config_data
+        self.sorted_peers_data = {}
+
+    def getPeers(self):
+        return sorted(list(self.config_data))
+
+    def getPeersData(self):
+        self.sorted_peers_data = [self.config_data.get(
+            peer) for peer in self.getPeers()]
+        return self.sorted_peers_data
+
+    def getPort(self, peer_name):
+        peer_data = self.config_data.get(peer_name)
+        if peer_data:
+            return peer_data.get("ports")
+        return None
+
+    def getHostPortByPeerName(self, peer_name):
+        peer_data = self.getPort(peer_name)
+        if peer_data:
+            return re.findall("\d+", peer_data[0])[0]
+        return None
+
+    def getServicePortByName(self, peer_name):
+        peer_data = self.getPort(peer_name)
+        if peer_data:
+            return re.findall("\d+", peer_data[0])[1]
+        return None
+
+
+class HyFabricPyCli():
+    pass
+
+
+class HyFabricPyCouch():
+    pass
+
+
+class HyFabricPyE2e():
+    pass
+
+
+class HyFabricPyOrderingService():
+    pass
+
+
+class Organizations():
+
+    def __init__(self, config_data):
+        self.config_data = config_data
+
+    def getHyCa(self):
+        return HyFabricPyCa(self.config_data.get("ca"))
+
+    def getHyPeer(self):
+        return HyFabricPeerPy(self.config_data.get("peers"))
+
+    def getOrgCredentials(self):
+        pass
+
+    def __getattr__(self, item):
+        if self.config_data:
+            value = self.config_data.get(item)
+            if value:
+                return value
+        return None
+
+
+class ConfigFile():
+
+    FABRIC_PATH = os.getenv("PWD")
+
+    BLOCKCHAINGATEWAY_PATH = "/home/node/app/src/config"
+    # os.getenv("BLOCKCHAINGATEWAY_PATH")
+
+    @staticmethod
+    def getConfigTx():
+        return "{fabric_path}/configtx.yaml".format(fabric_path=ConfigFile.FABRIC_PATH)
+
+    @staticmethod
+    def getCrypto():
+        return "{fabric_path}/crypto-config.yaml".format(fabric_path=ConfigFile.FABRIC_PATH)
+
+    @staticmethod
+    def getCli():
+        return "{fabric_path}/docker-compose-cli.yaml".format(fabric_path=ConfigFile.FABRIC_PATH)
+
+    @staticmethod
+    def getBase():
+        file_name = "docker-compose-base.yaml"
+        return "{fabric_path}/base/{file_name}".format(fabric_path=ConfigFile.FABRIC_PATH, file_name=file_name)
+
+    @staticmethod
+    def getCa():
+        file_name = "docker-compose-ca.yaml"
+        return "{fabric_path}/{file_name}".format(fabric_path=ConfigFile.FABRIC_PATH, file_name=file_name)
+
+    @staticmethod
+    def read_yaml_file(file_path):
+        with open(file_path) as file:
+            file_data = yaml.load(file, Loader=yaml.FullLoader)
+        return file_data
+
+
+class CryptoOrganizations():
+    def __init__(self, crypto_org_data=None):
+        # print(crypto_org_data)
+        self.crypto_org_data = crypto_org_data
+
+    def __getattr__(self, item):
+        if self.crypto_org_data:
+            value = self.crypto_org_data.get(item)
+            if value:
+                return value
+        return None
+
+
+class ConfigOrganizations():
+
+    def __init__(self, org_config=None):
+        # print(org_config)
+        self.org_config = org_config
+
+    def __getattr__(self, item):
+        if self.org_config:
+            value = self.org_config.get(item)
+            if value:
+                return value
+        return None
+
+    def getAnchorPeers(self):
+        return self.AnchorPeers
+
+    def getPolicies(self):
+        return self.Policies
+
+    def getName(self):
+        return self.Name
+
+    def getMsp(self):
+        return self.ID
+
+    def getFullData(self):
+        return self.org_config
+
+
+class HyFabricPy():
+    _config_data = None
+
+    def __init__(self):
+        self.organization_config = None
+        self.organization_crypto = None
+        self.list_config_org = None
+        self.list_crypto_org = None
+        self.cli_config_file_data = None
+        self.base_config_file_data = None
+        self.ca_config_file_data = None
+        self.read_organization_config_setting()
+        self.read_organization_crypto_setting()
+        self.getCliData()
+        self.getBaseData()
+        self.getCaData()
+        self._loadConfig()
+
+    def read_organization_config_setting(self):
+        with open(ConfigFile.getConfigTx()) as file:
+            self.organization_config = yaml.load(file, Loader=yaml.FullLoader)
+        self.list_config_org = [ConfigOrganizations(org) for org in self.organization_config.get(
+            "Organizations") if "Orde" not in org.get("Name")]
+
+    def read_organization_crypto_setting(self):
+        with open(ConfigFile.getCrypto()) as file:
+            self.organization_crypto = yaml.load(file, Loader=yaml.FullLoader)
+        self.list_crypto_org = [CryptoOrganizations(
+            org) for list_org in self.organization_crypto if "Orde" not in list_org for org in self.organization_crypto.get(list_org)]
+
+    def _getListOfCryptoOrganization(self):
+        while self.list_crypto_org:
+            yield self.list_crypto_org.pop()
+
+    def getBaseData(self):
+        self.base_config_file_data = ConfigFile.read_yaml_file(
+            ConfigFile.getBase())
+
+    def getCliData(self):
+        self.cli_config_file_data = ConfigFile.read_yaml_file(
+            ConfigFile.getCli())
+
+    def getCaData(self):
+        self.ca_config_file_data = ConfigFile.read_yaml_file(
+            ConfigFile.getCa())
+
+    def getListActivePeer(self):
+        return [peer for peer in self.cli_config_file_data.get("volumes") if "peer" in peer]
+
+    def fabricConfig(self):
+        return self._config_data
+
+    def _loadConfig(self):
+        list_peer_by_org = {}
+        while self.hasOrg(False):
+            org = self.cryptoOrg()
+
+            org_domain = org.Domain
+            org_msp = "{}MSP".format(org.Name)
+            org_name = org.Name
+
+            reg = re.compile('peer\d.{}'.format(org_domain))
+            base_config_file_data = self.base_config_file_data
+            base_docker_attribute = list(base_config_file_data)
+            list_peer_by_org[org_domain] = {}
+            list_peer_by_org[org_domain]["name"] = org_name
+            list_peer_by_org[org_domain]["msp"] = org_msp
+            list_peer_by_org[org_domain]["domain"] = org_domain
+            list_peer_by_org[org_domain]["ca"] = self.getCaByOrg(org_domain)
+            while base_docker_attribute:
+                current_attribute = base_docker_attribute.pop()
+                docker_services = base_config_file_data.get(current_attribute)
+                if isinstance(docker_services, dict):
+                    list_peer = (
+                        list(filter(reg.match, self.getListActivePeer())))
+                    list_peer_data = {}
+                    while list_peer:
+                        peer = list_peer.pop()
+                        peer_data = docker_services.get(peer)
+                        if peer_data:
+                            list_peer_data[peer] = peer_data
+                    list_peer_by_org[org_domain]["peers"] = list_peer_data
+            self._config_data = list_peer_by_org
+
+        return list_peer_by_org
+
+    def getCaByOrg(self, org_name):
+        list_services = self.ca_config_file_data.get("services")
+        docker_services = [list_services.get(
+            services) for services in list_services if "ca" in services]
+        while docker_services:
+            current_service = docker_services.pop()
+            result = re.match('ca(\d+)?.{}'.format(org_name),
+                              current_service.get("container_name"))
+            if result:
+                return current_service
+
+    def _getListOfConfigOrganization(self):
+        '''Get the name of all the organization'''
+        while self.list_config_org:
+            org = self.list_config_org.pop()
+            yield org
+
+    def configOrg(self):
+        '''
+        '''
+        try:
+            if self.list_config_org:
+                return next(self._getListOfConfigOrganization())
+            return None
+        except StopIteration:
+            return ConfigOrganizations()
+
+    def cryptoOrg(self):
+        try:
+            if self.list_crypto_org:
+                return next(self._getListOfCryptoOrganization())
+            return None
+        except StopIteration:
+            return CryptoOrganizations()
+
+    def hasOrg(self, useConfig=True):
+        '''Check whether the iterractor has next data
+        @param: useConfig specify whether to use the Hyperldger Fabric configtx file or crypto-config file
+        '''
+        if useConfig:
+            if self.list_config_org:
+                return True
+            return False
+        else:
+            if self.list_crypto_org:
+                return True
+            return False
+        # return [Organizations(org) for org in self.organization_config.get("Organizations") if "Orde" not in org.get("Name")]
+
+    def pemFileAsStr(self, pem_file):
+
+        with open(pem_file, 'r') as file:
+            filedata = file.read()
+        peem_str = filedata.replace('\n', "{}".format("\\\\n"))
+        return "'{}'".format(peem_str)
+
+    def generateConnexionProfile(self):
+        for k, v in self._config_data.items():
+            if k:
+                organization = Organizations(v)
+                cli_arg = [organization.name]
+                org_peers = organization.getHyPeer()
+                peers = organization.getHyPeer().getPeers()
+                org_ca = organization.getHyCa()
+                # print(org_ca.getHostPortName())
+                peer_peem = "{path}/crypto-config/peerOrganizations/{domain}/tlsca/tlsca.{domain}-cert.pem".format(
+                    domain=organization.domain, path=ConfigFile.BLOCKCHAINGATEWAY_PATH)
+
+                org_ca_cert = "{path}/crypto-config/peerOrganizations/{domain}/ca/ca.{domain}-cert.pem".format(
+                    domain=organization.domain, path=ConfigFile.BLOCKCHAINGATEWAY_PATH)
+
+                list_peers = org_peers.getPeersData()
+
+                # print(k)
+                for index in range(len(list_peers)):
+                    current_peer = list_peers[index]
+                    peer_name = current_peer.get("container_name")
+                    # print(peer_name)
+                    cli_arg.append(org_peers.getHostPortByPeerName(peer_name))
+                    # print(org_peers.getHostPortByPeerName(peer_name))
+
+                cli_arg.append(org_ca.getHostPortName())
+                cli_arg.append(peer_peem)
+                cli_arg.append(org_ca_cert)
+                cli_arg.append(organization.msp)
+                cli_arg.append(organization.domain)
+                cli_arg.append(org_ca.container_name)
+                cli_arg.extend(peers)
+                cli_arg.append(org_ca.getCaEnvName())
+
+                print("Creating connecxion profile for Organization: '{}'".format(
+                    organization.name))
+
+                self.run_profile_script(organization, cli_arg)
+
+                # print(org_peers.getPeersData())
+                # print([re.findall("[0-9]+",peer)[0] for peer in peers ])
+                # print(v)
+
+    def createOrgWallet(self):
+        blockchain_network_service = "http://localhost:8088/admin-register/"
+        for k, v in self._config_data.items():
+            if k:
+                organization = Organizations(v)
+                org_ca = organization.getHyCa()
+                username, password = org_ca.getOrgCredentials()
+
+                print("Get CA credentials for Organization: '{}'".format(
+                    organization.name))
+
+                org_data = {
+                    "password": password,
+                    "username": username,
+                    "org": organization.domain
+                }
+
+                print("Creating wallet for '{}'\t\t".format(
+                    organization.domain), end='')
+
+                try:
+                    requests.post(blockchain_network_service, data=org_data)
+
+                    print("\rCreating wallet for '{}'\t\t[OK]".format(
+                        organization.domain))
+
+                except Exception as ex:
+                    print("\rCreating wallet for '{}'\t\t[Failed]".format(
+                        organization.domain))
+                    print(str(ex))
+        exit()
+
+    def run_profile_script(self, org, args):
+
+        try:
+            # print(args)
+            script = ("sh,{fabric_path}/scripts/ccp-generate.sh,json,{args}".format(
+                args=",".join(args), fabric_path=ConfigFile.FABRIC_PATH)).split(",")
+            # print(script)
+        # output=subprocess.Popen(script,
+        #    stdout=subprocess.PIPE,
+        #    stderr=subprocess.STDOUT).communicate()
+
+        # print(output)
+            subprocess.run(script)
+        # print(os.popen("sh /mnt/sdb1/Project/blackcreek-blockchain/hyperledger-fabric/scripts/ccp-generate.sh yaml {}".format(" ".join(args))).read())
+        except FileNotFoundError as ex:
+            print(ex)
+
+
+def generateCpp():
+    hf = HyFabricPy()
+    # print(ccp.getListOfOrganization()[0].AnchorPeers[0].get("Host"))
+    # print(ccp.getListActivePeer())
+    hf.generateConnexionProfile()
+    # while ccp.hasOrg():
+    #     org=ccp.configOrg()
+    #     # print(org.getFullData())
+    #     # print(org.getName())
+    #     # print(org.getAnchorPeers())
+
+    # while ccp.hasOrg(False):
+    #     org=ccp.cryptoOrg()
+    #     print(org.Name)
+    #     print(org.Domain)
+
+
+def createOrgWallet():
+    hf = HyFabricPy()
+    hf.createOrgWallet()
+
+
+def getProgramArg():
+    '''Start getting the program argument
+    '''
+    usage = "usage: %prog [options] arg"
+    parser = OptionParser(usage)
+    parser.add_option("-c", "--ccp", action="store_const",
+                      const="ccp", dest="opt")
+    parser.add_option("-w", "--wallet", action="store_const",
+                      const="wallet", dest="opt")
+    # Get all the request command line argument
+    (options, args) = parser.parse_args()
+
+    # Start the function according to the user request
+    if options.opt == "ccp":
+        generateCpp()
+    elif options.opt == "wallet":
+        createOrgWallet()
+    else:
+        parser.error("incorrect number of arguments")
+
+
+def main():
+
+    if __name__ == "__main__":
+        getProgramArg()
+
+
+main()

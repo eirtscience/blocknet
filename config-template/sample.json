@@ -1,0 +1,284 @@
+{
+  'Organizations': [
+    {
+      'Name': 'OrdererOrg', 
+      'ID': 'OrdererMSP', 
+      'MSPDir': 'crypto-config/ordererOrganizations/blackcreek.tech/msp',
+       'Policies': {
+         'Readers': {
+           'Type': 'Signature', 
+           'Rule': "OR('OrdererMSP.member')"
+        }, 'Writers': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.member')"
+        }, 'Admins': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.admin')"
+        }
+      }
+    },
+    {'Name': 'BLACKCREEKMSP', 'ID': 'BLACKCREEKMSP', 'MSPDir': 'crypto-config/peerOrganizations/blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Sig
+nature', 'Rule': "OR('BLACKCREEKMSP.admin', 'BLACKCREEKMSP.peer', 'BLACKCREEKMSP.client')"
+        }, 'Writers': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin','BLACKCREEKMSP.peer','BLACKCREEKMSP.client')"
+        }, 'Admins': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin')"
+        }
+      }, 'AnchorPeers': [
+        {'Host': 'peer0.blackcreek.tech', 'Port
+': 7051
+        }
+      ]
+    },
+    {'Name': 'DCMSP', 'ID': 'DCMSP', 'MSPDir': 'crypto-config/peerOrganizations/dc.blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin', 'DCMSP.peer', 'DCMSP.client')"
+        }, 'Writers': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin', 'DCMSP.client')"
+        }, 'Admins': {'Type': 'Signature', 'Rul
+e': "OR('DCMSP.admin')"
+        }
+      }, 'AnchorPeers': [
+        {'Host': 'peer0.dc.blackcreek.tech', 'Port': 7051
+        }
+      ]
+    },
+    {'Name': 'DPMSP', 'ID': 'DPMSP', 'MSPDir': 'crypto-config/peerOrganiza
+tions/dp.blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin', 'DPMSP.peer', 'DPMSP.client')"
+        }, 'Writers': {'Type': 'Signature
+', 'Rule': "OR('DPMSP.admin', 'DPMSP.client')"
+        }, 'Admins': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin')"
+        }
+      }, 'AnchorPeers': [
+        {'Host': 'peer0.dp.blackcreek.tech', 'P
+ort': 9051
+        }
+      ]
+    }
+  ], 'Capabilities': {'Channel': {'V1_4_3': True, 'V1_3': False, 'V1_1': False
+    }, 'Orderer': {'V1_4_2': True, 'V1_1': False
+    }, 'Application': {'V1_4_2': True,
+ 'V1_3': False, 'V1_2': False, 'V1_1': False
+    }
+  }, 'Application': {'Organizations': None, 'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+      }, 'Writer
+s': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+      }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+      }
+    }, 'Capabilities': {'V1_4_2': True, 'V1_3': False, 'V
+1_2': False, 'V1_1': False
+    }
+  }, 'Orderer': {'OrdererType': 'etcdraft', 'Addresses': ['orderer.blackcreek.tech: 7050'
+    ], 'BatchTimeout': '2s', 'BatchSize': {'MaxMessageCoun
+t': 10, 'AbsoluteMaxBytes': '99 MB', 'PreferredMaxBytes': '512 KB'
+    }, 'Kafka': {'Brokers': ['127.0.0.1: 9092'
+      ]
+    }, 'EtcdRaft': {'Consenters': [
+        {'Host': 'orderer.blackcreek
+.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-c
+onfig/ordererOrganizations/blackcreek.tech/orderers/orderer.blackcreek.tech/tls/server.crt'
+        },
+        {'Host': 'orderer2.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'cryp
+to-config/ordererOrganizations/blackcreek.tech/orderers/orderer2.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/
+orderers/orderer2.blackcreek.tech/tls/server.crt'
+        },
+        {'Host': 'orderer3.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.
+tech/orderers/orderer3.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer3.blackcreek.tech/tls/serv
+er.crt'
+        },
+        {'Host': 'orderer4.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer4.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer4.blackcreek.tech/tls/server.crt'
+        },
+        {'Host': 'orderer5.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer5.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer5.blackcreek.tech/tls/server.crt'
+        }
+      ]
+    }, 'Organizations': None, 'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+      }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+      }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+      }, 'BlockValidation': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+      }
+    }
+  }, 'Channel': {'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+      }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+      }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+      }
+    }, 'Capabilities': {'V1_4_3': True, 'V1_3': False, 'V1_1': False
+    }
+  }, 'Profiles': {'TwoOrgsOrdererGenesis': {'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+        }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+        }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+        }
+      }, 'Capabilities': {'V1_4_3': True, 'V1_3': False, 'V1_1': False
+      }, 'Orderer': {'OrdererType': 'etcdraft', 'Addresses': ['orderer.blackcreek.tech: 7050'
+        ], 'BatchTimeout': '2s', 'BatchSize': {'MaxMessageCount': 10, 'AbsoluteMaxBytes': '99 MB', 'PreferredMaxBytes': '512 KB'
+        }, 'Kafka': {'Brokers': ['127.0.0.1: 9092'
+          ]
+        }, 'EtcdRaft': {'Consenters': [
+            {'Host': 'orderer.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer.blackcreek.tech/tls/server.crt'
+            },
+            {'Host': 'orderer2.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer2.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer2.blackcreek.tech/tls/server.crt'
+            },
+            {'Host': 'orderer3.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer3.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer3.blackcreek.tech/tls/server.crt'
+            },
+            {'Host': 'orderer4.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer4.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer4.blackcreek.tech/tls/server.crt'
+            },
+            {'Host': 'orderer5.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer5.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer5.blackcreek.tech/tls/server.crt'
+            }
+          ]
+        }, 'Organizations': [
+          {'Name': 'OrdererOrg', 'ID': 'OrdererMSP', 'MSPDir': 'crypto-config/ordererOrganizations/blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.member')"
+              }, 'Writers': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.member')"
+              }, 'Admins': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.admin')"
+              }
+            }
+          }
+        ], 'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+          }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+          }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+          }, 'BlockValidation': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+          }
+        }, 'Capabilities': {'V1_4_2': True, 'V1_1': False
+        }
+      }, 'Consortiums': {'BlackCreekNetwork': {'Organizations': [
+            {'Name': 'BLACKCREEKMSP', 'ID': 'BLACKCREEKMSP', 'MSPDir': 'crypto-config/peerOrganizations/blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin', 'BLACKCREEKMSP.peer', 'BLACKCREEKMSP.client')"
+                }, 'Writers': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin','BLACKCREEKMSP.peer','BLACKCREEKMSP.client')"
+                }, 'Admins': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin')"
+                }
+              }, 'AnchorPeers': [
+                {'Host': 'peer0.blackcreek.tech', 'Port': 7051
+                }
+              ]
+            },
+            {'Name': 'DCMSP', 'ID': 'DCMSP', 'MSPDir': 'crypto-config/peerOrganizations/dc.blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin', 'DCMSP.peer', 'DCMSP.client')"
+                }, 'Writers': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin', 'DCMSP.client')"
+                }, 'Admins': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin')"
+                }
+              }, 'AnchorPeers': [
+                {'Host': 'peer0.dc.blackcreek.tech', 'Port': 7051
+                }
+              ]
+            },
+            {'Name': 'DPMSP', 'ID': 'DPMSP', 'MSPDir': 'crypto-config/peerOrganizations/dp.blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin', 'DPMSP.peer', 'DPMSP.client')"
+                }, 'Writers': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin', 'DPMSP.client')"
+                }, 'Admins': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin')"
+                }
+              }, 'AnchorPeers': [
+                {'Host': 'peer0.dp.blackcreek.tech', 'Port': 9051
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }, 'BlackCreekChannel': {'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+        }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+        }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+        }
+      }, 'Capabilities': {'V1_4_3': True, 'V1_3': False, 'V1_1': False
+      }, 'Consortium': 'BlackCreekNetwork', 'Application': {'Organizations': [
+          {'Name': 'BLACKCREEKMSP', 'ID': 'BLACKCREEKMSP', 'MSPDir': 'crypto-config/peerOrganizations/blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin', 'BLACKCREEKMSP.peer', 'BLACKCREEKMSP.client')"
+              }, 'Writers': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin','BLACKCREEKMSP.peer','BLACKCREEKMSP.client')"
+              }, 'Admins': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin')"
+              }
+            }, 'AnchorPeers': [
+              {'Host': 'peer0.blackcreek.tech', 'Port': 7051
+              }
+            ]
+          },
+          {'Name': 'DCMSP', 'ID': 'DCMSP', 'MSPDir': 'crypto-config/peerOrganizations/dc.blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin', 'DCMSP.peer', 'DCMSP.client')"
+              }, 'Writers': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin', 'DCMSP.client')"
+              }, 'Admins': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin')"
+              }
+            }, 'AnchorPeers': [
+              {'Host': 'peer0.dc.blackcreek.tech', 'Port': 7051
+              }
+            ]
+          },
+          {'Name': 'DPMSP', 'ID': 'DPMSP', 'MSPDir': 'crypto-config/peerOrganizations/dp.blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin', 'DPMSP.peer', 'DPMSP.client')"
+              }, 'Writers': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin', 'DPMSP.client')"
+              }, 'Admins': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin')"
+              }
+            }, 'AnchorPeers': [
+              {'Host': 'peer0.dp.blackcreek.tech', 'Port': 9051
+              }
+            ]
+          }
+        ], 'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+          }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+          }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+          }
+        }, 'Capabilities': {'V1_4_2': True, 'V1_3': False, 'V1_2': False, 'V1_1': False
+        }
+      }
+    }, 'SampleMultiNodeEtcdRaft': {'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+        }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+        }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+        }
+      }, 'Capabilities': {'V1_4_3': True, 'V1_3': False, 'V1_1': False
+      }, 'Orderer': {'OrdererType': 'etcdraft', 'Addresses': ['orderer.blackcreek.tech: 7050', 'orderer2.blackcreek.tech: 7050', 'orderer3.blackcreek.tech: 7050', 'orderer4.blackcreek.tech: 7050', 'orderer5.blackcreek.tech: 7050'
+        ], 'BatchTimeout': '2s', 'BatchSize': {'MaxMessageCount': 10, 'AbsoluteMaxBytes': '99 MB', 'PreferredMaxBytes': '512 KB'
+        }, 'Kafka': {'Brokers': ['127.0.0.1: 9092'
+          ]
+        }, 'EtcdRaft': {'Consenters': [
+            {'Host': 'orderer.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer.blackcreek.tech/tls/server.crt'
+            },
+            {'Host': 'orderer2.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer2.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer2.blackcreek.tech/tls/server.crt'
+            },
+            {'Host': 'orderer3.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer3.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer3.blackcreek.tech/tls/server.crt'
+            },
+            {'Host': 'orderer4.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer4.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer4.blackcreek.tech/tls/server.crt'
+            },
+            {'Host': 'orderer5.blackcreek.tech', 'Port': 7050, 'ClientTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer5.blackcreek.tech/tls/server.crt', 'ServerTLSCert': 'crypto-config/ordererOrganizations/blackcreek.tech/orderers/orderer5.blackcreek.tech/tls/server.crt'
+            }
+          ]
+        }, 'Organizations': [
+          {'Name': 'OrdererOrg', 'ID': 'OrdererMSP', 'MSPDir': 'crypto-config/ordererOrganizations/blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.member')"
+              }, 'Writers': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.member')"
+              }, 'Admins': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.admin')"
+              }
+            }
+          }
+        ], 'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+          }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+          }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+          }, 'BlockValidation': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+          }
+        }, 'Capabilities': {'V1_4_2': True, 'V1_1': False
+        }
+      }, 'Application': {'Organizations': [
+          {'Name': 'OrdererOrg', 'ID': 'OrdererMSP', 'MSPDir': 'crypto-config/ordererOrganizations/blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.member')"
+              }, 'Writers': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.member')"
+              }, 'Admins': {'Type': 'Signature', 'Rule': "OR('OrdererMSP.admin')"
+              }
+            }
+          }
+        ], 'Policies': {'Readers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Readers'
+          }, 'Writers': {'Type': 'ImplicitMeta', 'Rule': 'ANY Writers'
+          }, 'Admins': {'Type': 'ImplicitMeta', 'Rule': 'MAJORITY Admins'
+          }
+        }, 'Capabilities': {'V1_4_2': True, 'V1_3': False, 'V1_2': False, 'V1_1': False
+        }
+      }, 'Consortiums': {'BlackCreekNetwork': {'Organizations': [
+            {'Name': 'BLACKCREEKMSP', 'ID': 'BLACKCREEKMSP', 'MSPDir': 'crypto-config/peerOrganizations/blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin', 'BLACKCREEKMSP.peer', 'BLACKCREEKMSP.client')"
+                }, 'Writers': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin','BLACKCREEKMSP.peer','BLACKCREEKMSP.client')"
+                }, 'Admins': {'Type': 'Signature', 'Rule': "OR('BLACKCREEKMSP.admin')"
+                }
+              }, 'AnchorPeers': [
+                {'Host': 'peer0.blackcreek.tech', 'Port': 7051
+                }
+              ]
+            },
+            {'Name': 'DCMSP', 'ID': 'DCMSP', 'MSPDir': 'crypto-config/peerOrganizations/dc.blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin', 'DCMSP.peer', 'DCMSP.client')"
+                }, 'Writers': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin', 'DCMSP.client')"
+                }, 'Admins': {'Type': 'Signature', 'Rule': "OR('DCMSP.admin')"
+                }
+              }, 'AnchorPeers': [
+                {'Host': 'peer0.dc.blackcreek.tech', 'Port': 7051
+                }
+              ]
+            },
+            {'Name': 'DPMSP', 'ID': 'DPMSP', 'MSPDir': 'crypto-config/peerOrganizations/dp.blackcreek.tech/msp', 'Policies': {'Readers': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin', 'DPMSP.peer', 'DPMSP.client')"
+                }, 'Writers': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin', 'DPMSP.client')"
+                }, 'Admins': {'Type': 'Signature', 'Rule': "OR('DPMSP.admin')"
+                }
+              }, 'AnchorPeers': [
+                {'Host': 'peer0.dp.blackcreek.tech', 'Port': 9051
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

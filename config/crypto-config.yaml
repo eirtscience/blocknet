@@ -1,0 +1,67 @@
+
+
+  # Copyright IBM Corp. All Rights Reserved.
+  #
+  # SPDX-License-Identifier: Apache-2.0
+  #
+
+  # ---------------------------------------------------------------------------
+  # "OrdererOrgs" - Definition of organizations managing orderer nodes
+  # ---------------------------------------------------------------------------
+  OrdererOrgs:
+    # ---------------------------------------------------------------------------
+    # Orderer
+    # ---------------------------------------------------------------------------
+    - Name: Orderer
+      Domain: sdfsdfsdf.com
+      EnableNodeOUs: true
+      # ---------------------------------------------------------------------------
+      # "Specs" - See PeerOrgs below for complete description
+      # ---------------------------------------------------------------------------
+      Specs:
+                        
+        - Hostname: orderer                
+        - Hostname: orderer1                
+        - Hostname: orderer2                
+        - Hostname: orderer3                
+        - Hostname: orderer4                
+        - Hostname: orderer5
+
+  # ---------------------------------------------------------------------------
+  # "PeerOrgs" - Definition of organizations managing peer nodes
+  # ---------------------------------------------------------------------------
+  PeerOrgs:
+    
+    # ---------------------------------------------------------------------------
+    # SDFSDFSDF:
+    # ---------------------------------------------------------------------------
+    - Name: SDFSDFSDF
+        Domain: sdfsdfsdf.com
+        EnableNodeOUs: true
+        Template:
+          Count: 1
+        Users:
+          Count: 1
+        
+    # ---------------------------------------------------------------------------
+    # adada:
+    # ---------------------------------------------------------------------------
+    - Name: adada
+        Domain: adada.com
+        EnableNodeOUs: true
+        Template:
+          Count: 2
+        Users:
+          Count: 1
+        
+    # ---------------------------------------------------------------------------
+    # adadad:
+    # ---------------------------------------------------------------------------
+    - Name: adadad
+        Domain: adadad.com
+        EnableNodeOUs: true
+        Template:
+          Count: 2
+        Users:
+          Count: 1
+        
