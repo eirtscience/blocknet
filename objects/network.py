@@ -11,6 +11,7 @@ from .genesis import Genesis
 from .consurtium import Consurtium
 from .network_file_handler import NetworkFileHandler
 from .cache import CacheServer
+from .hycomposer import HyperledgerComposer
 
 
 def toString(value):
@@ -36,7 +37,7 @@ class Network:
         self.list_version = {"V1_4_4": True, "V1_4_2": False,
                              "V1_3": False, "V1_2": False, "V1_1": False}
         self.name = None
-        self.organization = []
+        self.organization = {}
         self.capabilities = None
         self.orderer = None
         self.admin = None
@@ -46,7 +47,11 @@ class Network:
         self.list_org_name = []
         self.genesis = None
         self.total_number_of_peer_per_organization = 0
+        self.hy_composer = None
         self.__cache_server = CacheServer()
+
+    def add_hy_composer(self, data):
+        self.hy_composer = HyperledgerComposer(**data)
 
     def hasChainCode(self):
         return self.orderer.generate_chainecode
@@ -70,16 +75,34 @@ class Network:
     def getNumberOfPeers(self):
         return self.total_number_of_peer_per_organization
 
+    def getOrgDomain(self, name, domain):
+        name = name.lower()
+        domain = domain.lower()
+        if name not in domain:
+            return "{}.{}".format(
+                name, domain)
+        return domain
+
     def channel(self):
         if (self.consurtium.numberOfChannel() == 1):
             return self.consurtium.getInitialChannel()
 
     def addorg(self, name=None, domain=None, organization=None):
+        org_domain = None
         if name and organization == None:
-            self.organization.append(Organization(
-                name, domain=domain, has_anchor=True))
+            org_domain = self.getOrgDomain(name, domain)
+            self.organization[org_domain] = Organization(
+                name, domain=domain, has_anchor=True)
         else:
-            self.organization.append(organization)
+            org_domain = organization.getDomain()
+            self.organization[org_domain] = organization
+
+    def getOrganization(self, number=-1):
+        list_org = list(self.organization.values())
+
+        if number >= 0 and (number < len(list_org)):
+            return list_org[number]
+        return list_org
 
     def addnetwork_admin(self, data):
         self.admin = NetworkAdministrator(data)
@@ -89,9 +112,8 @@ class Network:
         organization = Organization(
             self.admin.organization_name, domain=self.admin.domain, type_org="admin", has_anchor=True)
 
-        organization.addAllPeers(data.get("number_of_peer"))
-
-        self.addorg(organization=organization)
+        # organization.addAllPeers(data.get("number_of_peer"))
+        # self.addorg(organization=organization)
 
         self.admin.organization = organization
 
@@ -102,16 +124,21 @@ class Network:
         return self.admin.organization
 
     def addnetwork_orderer(self, data):
-        if data["org"].get("name"):
+        org_name = data["org"].get("name")
+        if org_name:
             self.orderer = Orderer(data=data, list_version=self.list_version)
             self.orderer.create_orderer()
-            self.organization.append(self.orderer)
+            # org_domain = self.orderer.getHostname()
+            # self.organization[org_domain] = self.orderer
+
+    def getOrgByDomain(self, domain):
+        return self.organization.get(domain)
 
     def getListOrg(self, padding_left=""):
         list_org = ""
         list_org_name = []
         list_org_obj = []
-        for org in self.organization:
+        for org in self.getOrganization():
             if isinstance(org, Organization):
                 list_org += """
                 {} - * {} """.format(padding_left, org.name.upper())
@@ -125,7 +152,7 @@ class Network:
     def getPeersConfigForAllOrgs(self):
         peers_config = ""
 
-        for org in self.organization:
+        for org in self.getOrganization():
 
             if isinstance(org, Organization):
                 peers_config += """
@@ -151,7 +178,7 @@ class Network:
         template = ""
         index = -1
 
-        for org in self.organization:
+        for org in self.getOrganization():
             if isinstance(org, Organization):
                 if index < 0:
                     ca_name = "ca"
@@ -175,7 +202,7 @@ class Network:
           - "{3}:{4}"
         command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/ca.{1}-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/${{BYFN_CA_PRIVATE_KEY}} -b {5} -d'
         volumes:
-          - ./crypto-config/peerOrganizations/blackcreek.tech/ca/:/etc/hyperledger/fabric-ca-server-config
+          - ./crypto-config/peerOrganizations/{1}/ca/:/etc/hyperledger/fabric-ca-server-config
           - ./fabric-ca-server/:/etc/hyperledger/fabric-ca-server
           - /etc/localtime:/etc/localtime:ro
           - /etc/timezone:/etc/timezone:ro
@@ -305,7 +332,24 @@ Profiles:
         list_service = []
         list_depend = []
 
-        for org in self.organization:
+        host_name = self.orderer.getHostname()
+        list_volumes.append("""
+  {}: """.format(host_name))
+        list_depend.append("""
+      - {} """.format(host_name))
+
+        list_service.append("""
+  {0}:
+    container_name: {0}
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: {0}
+    networks:
+      - byfn
+                    """.format(host_name))
+
+        for org in self.getOrganization():
             if isinstance(org, Organization):
                 for peer in org.list_peer:
                     peer_host_name = peer.getHostname()
@@ -326,29 +370,15 @@ Profiles:
       - byfn
                     """.format(peer_host_name))
 
-            elif isinstance(org, Orderer):
-                host_name = org.getHostname()
-                list_volumes.append("""
-  {}: """.format(host_name))
-                list_depend.append("""
-      - {} """.format(host_name))
-
-                list_service.append("""
-  {0}:
-    container_name: {0}
-    restart: always
-    extends:
-      file:  base/docker-compose-base.yaml
-      service: {0}
-    networks:
-      - byfn
-                    """.format(host_name))
-
         return "".join(list_volumes), "".join(list_service), "".join(list_depend)
 
     def create_cli(self):
 
         volumes, services, depends_on = self.create_cli_services()
+
+        org = self.getOrganization(0)
+
+        chain_code = self.getInitialChainCode(return_type=object)
 
         template = """
 # Copyright IBM Corp. All Rights Reserved.
@@ -394,7 +424,7 @@ services:
     volumes:
         - /var/run/:/host/var/run/
         - ./chaincode/:/opt/gopath/src/github.com/chaincode
-        - ../../blackcreek-chaincode/blackcreek/estate/javascript/:/opt/gopath/src/github.com/chaincode/{7}/node/
+        - {8}/{9}:/opt/gopath/src/github.com/chaincode/{7}/node/
         - ./crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
         - ./scripts:/opt/gopath/src/github.com/hyperledger/fabric/peer/scripts/
         - ./channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
@@ -428,15 +458,18 @@ services:
     networks:
       - byfn
 
-        """.format(volumes,
+        """.format(
+            volumes,
                    services,
-                   self.getAdminOrg().getAnchorPeer().getHostname(),
-                   self.getAdminOrg().id,
+                   org.getAnchorPeer().getHostname(),
+                   org.id,
                    depends_on,
                    self.admin.email_address,
-                   self.admin.domain,
-                   self.admin.organization_name.lower()
-                   )
+                   org.getDomain(),
+                   org.name.lower(),
+                   chain_code.directory,
+                   chain_code.language
+        )
 
         with open(NetworkFileHandler.networkpath("docker-compose-cli.yaml"), "w") as f:
             f.write(template)
@@ -512,7 +545,10 @@ Organizations:
 
             f.write(file_begin)
 
-            for org in self.organization:
+            f.write(self.orderer.dump())
+            f.write("\n\n")
+
+            for org in self.getOrganization():
                 f.write(org.dump())
                 f.write("\n\n")
 
@@ -565,7 +601,7 @@ Organizations:
     def create_couchdb(self):
         template = ""
 
-        for org in self.organization:
+        for org in self.getOrganization():
             if isinstance(org, Organization):
                 for peer in org.list_peer:
                     peer_host_name = peer.getHostname()
@@ -633,7 +669,19 @@ services:
         list_ca_certificate = []
         index = -1
 
-        for org in self.organization:
+        host_name = self.orderer.getHostname()
+        list_service.append("""
+  {0}:
+    container_name: {0}
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: {0}
+    networks:
+      - byfn
+                    """.format(host_name))
+
+        for org in self.getOrganization():
 
             if isinstance(org, Organization):
                 ca_name = "ca%d" % index
@@ -684,20 +732,6 @@ services:
     networks:
       - byfn
                     """.format(peer_host_name))
-
-            elif isinstance(org, Orderer):
-                host_name = org.getHostname()
-                list_service.append("""
-  {0}:
-    container_name: {0}
-    restart: always
-    extends:
-      file:  base/docker-compose-base.yaml
-      service: {0}
-    networks:
-      - byfn
-                    """.format(host_name))
-
             index += 1
 
         return "".join(list_volumes), "".join(list_service), "".join(list_ca_certificate)
@@ -748,14 +782,14 @@ services:
     - byfn
     volumes:
         - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
-        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/{orderer.host}/msp:/var/hyperledger/orderer/msp
-        - ./crypto-config/ordererOrganizations/blackcreek.tech/orderers/{orderer.host}/tls/:/var/hyperledger/orderer/tls
+        - ./crypto-config/ordererOrganizations/{domain_name}/orderers/{orderer.host}/msp:/var/hyperledger/orderer/msp
+        - ./crypto-config/ordererOrganizations/{domain_name}/orderers/{orderer.host}/tls/:/var/hyperledger/orderer/tls
         - {orderer.host}:/var/hyperledger/production/orderer
         - /etc/localtime:/etc/localtime:ro
         - /etc/timezone:/etc/timezone:ro
     ports:
     - {orderer.port}:{orderer.intern_port}
-  """.format(orderer=orderer))
+  """.format(orderer=orderer, domain_name=self.orderer.getDomain()))
 
         return "".join(list_orderer), "".join(list_orderer_host)
 
@@ -929,6 +963,8 @@ COUNTER=1
 MAX_RETRY=10
 CHAINCODE_DIR=
 CHAINCODE_NAME={2}
+EXPLORER_PORT=
+RUN_EXPLORER=false
         """.format(
             image_tag,
                    self.channel().name,
@@ -1203,9 +1239,20 @@ main $@
 
         list_org_condition = []
         list_org_condition_next = []
+        list_anchor_peer = []
 
-        for org in self.organization:
+        ca_folder = """
+ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/{0}/orderers/{1}/msp/tlscacerts/tlsca.{0}-cert.pem""".format(
+            self.orderer.getDomain(),
+            self.orderer.getHostname()
+        )
+
+        for org in self.getOrganization():
             if isinstance(org, Organization):
+                list_anchor_peer.append(org.getAnchorPeer().getHostname())
+                ca_folder += """
+PEER{0}_{1}_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{2}/peers/peer0.{2}/tls/ca.crt""".format(index, org.name, org.getDomain())
+
                 if index == 0:
                     list_org_condition.append("""
   if [ $ORG -eq {} ];then
@@ -1223,7 +1270,7 @@ main $@
                         self.admin.email_address,
                         self.create_utils_template_for_peer(org)))
 
-                elif index < (len(self.organization) - 2):
+                elif index < (len(self.organization.keys()) - 2):
                     list_org_condition.append("""
   elif [ $ORG -eq {} ];then
     ORG="{}" """.format(index, org.name))
@@ -1256,14 +1303,17 @@ main $@
                         self.create_utils_template_for_peer(org)
                     ))
 
-                index += 1
+                    index += 1
+
+        self.__cache_server.set_session("list_anchor_peer", list_anchor_peer)
 
         return function_orderer_global, \
             "".join(list_org_condition), \
             "".join(list_org_condition_next), \
             function_update_anchor_peer, \
             function_instantiate_chaincode, \
-            function_upgrade_chaincode
+            function_upgrade_chaincode, \
+            ca_folder
 
     def create_utils_file(self):
 
@@ -1272,7 +1322,8 @@ main $@
             function_global_next, \
             function_update_anchor_peer, \
             function_instantiate_chaincode, \
-            function_upgrade_chaincode = self.create_utils_template()
+            function_upgrade_chaincode, \
+            ca_folder = self.create_utils_template()
 
         template = """
 #
@@ -1284,10 +1335,7 @@ main $@
 
 # This is a collection of bash functions used by different scripts
 
-ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/blackcreek.tech/orderers/orderer.blackcreek.tech/msp/tlscacerts/tlsca.blackcreek.tech-cert.pem
-PEER0_BLACKCREEK_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/blackcreek.tech/peers/peer0.blackcreek.tech/tls/ca.crt
-PEER0_DC_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dc.blackcreek.tech/peers/peer0.dc.blackcreek.tech/tls/ca.crt
-PEER0_DP_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dp.blackcreek.tech/peers/peer0.dp.blackcreek.tech/tls/ca.crt
+{7}
 
 # verify the result of the end-to-end test
 verifyResult() {{
@@ -1544,7 +1592,8 @@ chaincodeInvoke() {{
             function_update_anchor_peer,
             function_instantiate_chaincode,
             function_upgrade_chaincode,
-            self.orderer.getAnchorPeer())
+            self.orderer.getAnchorPeer(),
+            ca_folder)
 
         NetworkFileHandler.create_script_file("utils.sh", template)
 
@@ -1554,6 +1603,7 @@ chaincodeInvoke() {{
     def create_script_file(self):
 
         list_org_name = " ".join(self.__cache_server.get_session("list_org"))
+        chain_code = self.getInitialChainCode(object)
 
         template = """
 #!/bin/bash
@@ -1582,8 +1632,8 @@ NO_CHAINCODE="$6"
 LANGUAGE=`echo "$LANGUAGE" | tr [:upper:] [:lower:]`
 COUNTER=1
 MAX_RETRY=10
-CHAINCODE_DIR="blackcreek"
-CHAINCODE_NAME="blackcreek_estate"
+CHAINCODE_DIR="{4}"
+CHAINCODE_NAME="{5}"
 
 CC_SRC_PATH="github.com/chaincode/${{CHAINCODE_DIR}}/go/"
 if [ "$LANGUAGE" = "node" ]; then
@@ -1690,7 +1740,9 @@ fix
             self.consurtium.getInitialChannel().name,
             self.admin.organization_name,
             self.orderer.getAnchorPeer(),
-            list_org_name
+            list_org_name,
+            chain_code.directory,
+            chain_code.name
         )
 
         NetworkFileHandler.create_script_file("script.sh", template)
@@ -1739,8 +1791,11 @@ fix
     def create_bbchain_file(self):
         ca_orgname, function_update_private_key, anchor_peer = self.create_bbchain_template()
         list_peer = self.getCachedData("list_peer")
-
-        print(list_peer)
+        list_anchor_peer = "`` & ``".join(
+            self.getCachedData("list_anchor_peer"))
+        list_org_name = self.getCachedData("list_org")
+        list_org = "`` & ``".join(list_org_name)
+        list_org_for_ccp_file = ",".join(list_org_name)
 
         template = """
 #!/bin/bash
@@ -2127,7 +2182,7 @@ function removeExplorerConfiguration()
   fi
 
   # remove the network configuration file
-  rm -rf $EXPLORER_DIR/app/config/connection-profile/blackcreek.json
+  rm -rf $EXPLORER_DIR/app/config/connection-profile/{7}.json
 
 }}
 
@@ -2205,7 +2260,7 @@ function generateCerts() {{
     exit 1
   fi
   echo
-  echo "Generate CCP files for BlackCreek, DC and DP"
+  echo "Generate CCP files for {10}"
   ./ccp-generate.sh
 
 }}
@@ -2219,15 +2274,15 @@ generateExplorerCertificate()
 
     cwd=$PWD
 
-    cp ${{EXPLORER_DIR}}/app/config/connection-profile/blackcreek_template.json ${{EXPLORER_DIR}}/app/config/connection-profile/blackcreek.json
+    cp ${{EXPLORER_DIR}}/app/config/connection-profile/template.json ${{EXPLORER_DIR}}/app/config/connection-profile/{7}.json
 
-    cd crypto-config/peerOrganizations/blackcreek.tech/users/Admin@blackcreek.tech/msp/keystore/
+    cd crypto-config/peerOrganizations/blackcreek.tech/users/{6}/msp/keystore/
 
     admin_key=$(ls *_sk)
 
     cd $cwd
 
-    sed -i "s/ADMIN_KEY/${{admin_key}}/g" ${{EXPLORER_DIR}}/app/config/connection-profile/blackcreek.json
+    sed -i "s/ADMIN_KEY/${{admin_key}}/g" ${{EXPLORER_DIR}}/app/config/connection-profile/{7}.json
 }}
 
 # The `configtxgen tool is used to create four artifacts: orderer **bootstrap
@@ -2241,7 +2296,7 @@ generateExplorerCertificate()
 #
 # Configtxgen consumes a file - ``configtx.yaml`` - that contains the definitions
 # for the sample network. There are three members - one Orderer Org (``OrdererOrg``)
-# and two Peer Orgs (``DC`` & ``DP``) each managing and maintaining two peer nodes.
+# and two Peer Orgs (``{9}``) each managing and maintaining two peer nodes.
 # This file also specifies a consortium - ``SampleConsortium`` - consisting of our
 # two Peer Orgs.  Pay specific attention to the "Profiles" section at the top of
 # this file.  You will notice that we have two unique headers. One for the orderer genesis
@@ -2249,7 +2304,7 @@ generateExplorerCertificate()
 # These headers are important, as we will pass them in as arguments when we create
 # our artifacts.  This file also contains two additional specifications that are worth
 # noting.  Firstly, we specify the anchor peers for each Peer Org
-# (``peer0.dc.blackcreek.tech`` & ``peer0.dp.blackcreek.tech``).  Secondly, we point to
+# (``{8}``).  Secondly, we point to
 # the location of the MSP directory for each member, in turn allowing us to store the
 # root certificates for each Org in the orderer genesis block.  This is a critical
 # concept. Now any network entity communicating with the ordering service can have
@@ -2451,7 +2506,7 @@ elif [ "${{MODE}}" == "generate" ]; then ## Generate Artifacts
 elif [ "${{MODE}}" == "restart" ]; then ## Restart the network
   networkDown
   networkUp
-## Upgrade the network from version 1.2.x to 1.3.x
+# Upgrade the network from version 1.2.x to 1.3.x
 elif [ "${{MODE}}" == "upgrade" ]; then
   upgradeNetwork
 elif [ "${{MODE}}" == "explorer" ]; then
@@ -2472,7 +2527,12 @@ fi
             " ".join(list_peer),
             function_update_private_key,
             self.channel().name,
-            anchor_peer
+            anchor_peer,
+            self.admin.email_address,
+            self.admin.organization_name,
+            list_anchor_peer,
+            list_org,
+            list_org_for_ccp_file
         )
 
         NetworkFileHandler.create_file("bbchain.sh", template)
@@ -2503,6 +2563,8 @@ fi
         )
 
         for peer in self.getCachedData("list_peer_obj"):
+            peer_gossip_address = self.getOrgByDomain(
+                peer.domain).getGossipPeer().getinternal_address()
             template += """
   {0}:
     container_name: {0}
@@ -2513,15 +2575,15 @@ fi
       - CORE_PEER_ID={0}
       - CORE_PEER_ADDRESS={0}
       - CORE_PEER_LISTENADDRESS=0.0.0.0:{2}
-      - CORE_PEER_CHAINCODEADDRESS=peer0.blackcreek.tech:7052
-      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.blackcreek.tech:8051
+      - CORE_PEER_CHAINCODEADDRESS={4}
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:{5}
+      - CORE_PEER_GOSSIP_BOOTSTRAP={7}
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT={1}
       - CORE_PEER_LOCALMSPID=BLACKCREEKMSP
     volumes:
         - /var/run/:/host/var/run/
-        - ../crypto-config/peerOrganizations/blackcreek.tech/peers/{0}/msp:/etc/hyperledger/fabric/msp
-        - ../crypto-config/peerOrganizations/blackcreek.tech/peers/{0}/tls:/etc/hyperledger/fabric/tls
+        - ../crypto-config/peerOrganizations/{6}/peers/{0}/msp:/etc/hyperledger/fabric/msp
+        - ../crypto-config/peerOrganizations/{6}/peers/{0}/tls:/etc/hyperledger/fabric/tls
         - {0}:/var/hyperledger/production
         - /etc/localtime:/etc/localtime:ro
         - /etc/timezone:/etc/timezone:ro
@@ -2532,7 +2594,11 @@ fi
                 peer.getHostname(),
                 peer.getinternal_address(),
                 peer.intern_port,
-                peer.port
+                peer.port,
+                peer.getChainCodeAddress(),
+                peer.getChainCodeInternPort(),
+                peer.domain,
+                peer_gossip_address
             )
 
         return template
@@ -2556,6 +2622,102 @@ services:
         NetworkFileHandler.create_base_file(
             "docker-compose-base.yaml", template)
 
+    def create_explorer_profile_file(self):
+        template = """
+{{
+
+	"version": "1.0.0",
+	"client": {{
+		"tlsEnable": true,
+		"adminUser": "admin",
+		"adminPassword": "adminpw",
+		"enableAuthentication": false,
+		"organization": "BLACKCREEK",
+		"connection": {{
+			"timeout": {{
+				"peer": {{
+					"endorser": "300"
+				}},
+				"orderer": "300"
+			}}
+		}}
+	}},
+	"channels": {{
+		"blackcreekchannel": {{
+			"orderer":[
+				"{1}"
+			],
+			"peers": {{
+				"peer0.blackcreek.tech": {{}}
+			}},
+			"connection": {{
+				"timeout": {{
+					"peer": {{
+						"endorser": "6000",
+						"eventHub": "6000",
+						"eventReg": "6000"
+					}}
+				}}
+			}}
+		}}
+	}},
+	"orderers":{{
+		"orderer.blackcreek.com":{{
+			"url": "grpc://orderer.blackcreek.tech:7050"
+		}},
+		"orderer2.blackcreek.com":{{
+			"url": "grpc://orderer2.blackcreek.tech:7050"
+		}}
+	}},
+	"organizations": {{
+		"BLACKCREEK": {{
+			"mspid": "BLACKCREEKMSP",
+			"fullpath": true,
+			"adminPrivateKey": {{
+				"path": "/tmp/crypto/peerOrganizations/blackcreek.tech/users/{0}/msp/keystore/ADMIN_KEY"
+			}},
+			"signedCert": {{
+				"path": "/tmp/crypto/peerOrganizations/blackcreek.tech/users/{0}/msp/signcerts/{0}-cert.pem"
+			}}
+		}}
+	}},
+	"peers": {{
+		"peer0.blackcreek.tech": {{
+            "url": "grpcs://peer0.blackcreek.tech:7051",
+			"tlsCACerts": {{
+				"path": "/tmp/crypto/peerOrganizations/blackcreek.tech/peers/peer0.blackcreek.tech/tls/ca.crt"
+			}},
+			"requests": "grpcs://peer0.blackcreek.tech:7051",
+			"grpcOptions": {{
+				"ssl-target-name-override": "peer0.blackcreek.tech"
+			}}
+		}}
+	}}
+}}
+      """.format(
+            self.admin.email_address,
+            self.orderer.getHostname()
+        )
+
+        NetworkFileHandler.create_explorer_file(
+            "config/connexion-profile/template.json", template)
+
+    def create_explorer_config_file(self):
+        template = """
+{{
+	"network-configs": {{
+	"{0}": {{
+		"name": "{0}",
+		"profile": "./connection-profile/{0}.json"
+	}}
+}},
+
+"license": "Apache-2.0"
+}}
+      """.format(self.admin.organization_name.lower())
+
+        NetworkFileHandler.create_explorer_file("config/config.json", template)
+
     def generate(self):
 
         self.create_configtx_file()
@@ -2572,3 +2734,5 @@ services:
         self.create_script_file()
         self.create_bbchain_file()
         self.create_peer_base_file()
+        self.create_explorer_profile_file()
+        self.create_explorer_config_file()

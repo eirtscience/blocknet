@@ -45,11 +45,35 @@ def add_admin():
     list_admin_info["email_address"] = Console.get_string(
         "Email Address", default=login_name.lower()+"@"+domain.lower())
 
-    number_of_peer = Console.get_int("Number of peers", default=1)
+    # number_of_peer = Console.get_int("Number of peers", default=1)
 
-    list_admin_info["number_of_peer"] = number_of_peer
+    # list_admin_info["number_of_peer"] = number_of_peer
 
     network.addnetwork_admin(list_admin_info)
+
+
+def add_composer_explorer():
+    print('''
+################################################################################
+#
+#   SECTION: Composer Explorer
+#
+#   - This section will create a Hyperledger composer UI to view the blockchain
+#     transaction.
+#
+################################################################################
+    ''')
+    data = {}
+    create_composer = Console.get_bool(
+        "Do you want to install Hyperledger composer?")
+
+    if create_composer:
+        port_number = Console.get_int("Enter the port number", default=8080)
+        data["port"] = port_number
+
+    data["install"] = create_composer
+
+    network.add_hy_composer(data)
 
 
 def add_orderer():
@@ -215,6 +239,7 @@ def start():
     add_orderer()
     get_org()
     add_chaincode()
+    add_composer_explorer()
     network.generate()
 
     #Console.run("bash ./config/fabric/env.sh")

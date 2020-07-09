@@ -25,7 +25,7 @@ NO_CHAINCODE="$6"
 LANGUAGE=`echo "$LANGUAGE" | tr [:upper:] [:lower:]`
 COUNTER=1
 MAX_RETRY=10
-CHAINCODE_DIR="blackcreek"
+CHAINCODE_DIR="./"
 CHAINCODE_NAME="blackcreek_estate"
 
 CC_SRC_PATH="github.com/chaincode/${CHAINCODE_DIR}/go/"
@@ -63,7 +63,7 @@ createChannel() {
 }
 
 joinChannel () {
-	for org in blackcreek dc dp; do
+	for org in dc dp dt; do
 	    for peer in 0 ; do
 		joinChannelWithRetry $peer $org
 		echo "===================== peer${peer}.${org} joined channel '$CHANNEL_NAME' ===================== "

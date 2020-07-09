@@ -8,10 +8,11 @@
 
 # This is a collection of bash functions used by different scripts
 
+
 ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/blackcreek.tech/orderers/orderer.blackcreek.tech/msp/tlscacerts/tlsca.blackcreek.tech-cert.pem
-PEER0_BLACKCREEK_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/blackcreek.tech/peers/peer0.blackcreek.tech/tls/ca.crt
 PEER0_DC_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dc.blackcreek.tech/peers/peer0.dc.blackcreek.tech/tls/ca.crt
 PEER0_DP_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dp.blackcreek.tech/peers/peer0.dp.blackcreek.tech/tls/ca.crt
+PEER0_DT_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dt.blackcreek.tech/peers/peer0.dt.blackcreek.tech/tls/ca.crt
 
 # verify the result of the end-to-end test
 verifyResult() {
@@ -41,24 +42,16 @@ setGlobals() {
 if [[ $ORG =~ ^[0-9]+$ ]]; then
     
   if [ $ORG -eq 0 ];then
-    ORG="BLACKCREEK" 
-  elif [ $ORG -eq 1 ];then
     ORG="DC" 
-  else
+  if [ $ORG -eq 0 ];then
     ORG="DP" 
+  if [ $ORG -eq 0 ];then
+    ORG="DT" 
   fi
 fi
 
 
-  if [ $ORG = 'BLACKCREEK' ]; then
-    CORE_PEER_LOCALMSPID="BLACKCREEKMSP"
-    CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_BLACKCREEK_CA
-    CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/blackcreek.tech/users/admin@blackcreek.tech/msp
-    
-    if [ $PEER -eq 0 ]; then
-      CORE_PEER_ADDRESS=peer0.blackcreek.tech:7054 
-    fi  
-  elif [ $ORG = 'DC' ]; then
+  if [ $ORG = 'DC' ]; then
     CORE_PEER_LOCALMSPID="DCMSP"
     CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_DC_CA
     CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dc.blackcreek.tech/users/admin@blackcreek.tech/msp
@@ -69,7 +62,7 @@ fi
       CORE_PEER_ADDRESS=peer1.dc.blackcreek.tech:7054
     fi
              
-  elif [ $ORG = 'DP' ]; then
+  if [ $ORG = 'DP' ]; then
     CORE_PEER_LOCALMSPID="DPMSP"
     CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_DP_CA
     CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dp.blackcreek.tech/users/admin@blackcreek.tech/msp
@@ -78,6 +71,17 @@ fi
       CORE_PEER_ADDRESS=peer0.dp.blackcreek.tech:7054 
     else
       CORE_PEER_ADDRESS=peer1.dp.blackcreek.tech:7054
+    fi
+             
+  if [ $ORG = 'DT' ]; then
+    CORE_PEER_LOCALMSPID="DTMSP"
+    CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_DT_CA
+    CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dt.blackcreek.tech/users/admin@blackcreek.tech/msp
+    
+    if [ $PEER -eq 0 ]; then
+      CORE_PEER_ADDRESS=peer0.dt.blackcreek.tech:7054 
+    else
+      CORE_PEER_ADDRESS=peer1.dt.blackcreek.tech:7054
     fi
              
   else

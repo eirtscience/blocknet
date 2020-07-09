@@ -22,6 +22,12 @@ class Peer(Server):
         elif self.name:
             return self.name.lower()
 
+    def getChainCodeInternPort(self):
+        return NetworkServer.PEER_SERVER_CHAINCODE_INTERN_PORT
+
+    def getChainCodeAddress(self):
+        return "{}:{}".format(self.getHostname(), NetworkServer.PEER_SERVER_CHAINCODE_INTERN_PORT)
+
     def create_couchdb(self):
         self.couchdb = Server("couchdb." + self.getHostname())
         NetworkServer.COUCHDB_SERVER_EXTERN_PORT += 1

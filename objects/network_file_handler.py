@@ -19,4 +19,8 @@ class NetworkFileHandler:
 
     @staticmethod
     def create_base_file(file_name, template):
-        NetworkFileHandler.create_file("base/"+file_name, template)
+        NetworkFileHandler.create_file("base/" + file_name, template)
+
+    @staticmethod
+    def create_explorer_file(file_name, template):
+        NetworkFileHandler.create_file("explorer/"+file_name, template)

@@ -16,33 +16,6 @@
 Organizations:
 
             
-  - &BLACKCREEK
-
-  	Name: BLACKCREEK
-
-  	ID: BLACKCREEKMSP
-
-  	MSPDir: crypto-config/peerOrganizations/blackcreek.tech/msp
-
-
-  	Policies:
- 	     Readers:
-				   Type: Signature
-				   Rule: "OR('BLACKCREEKMSP.admin','BLACKCREEKMSP.peer','BLACKCREEKMSP.client')"
- 	     Writers:
-				   Type: Signature
-				   Rule: "OR('BLACKCREEKMSP.admin','BLACKCREEKMSP.peer','BLACKCREEKMSP.client')"
- 	     Admins:
-				   Type: Signature
-				   Rule: "OR('BLACKCREEKMSP.admin')"
-
-  	AnchorPeers:
-
-
-			- Host: peer0.blackcreek.tech
-			  Port: 7051
-
-
   - &Orderer
 
   	Name: Orderer
@@ -118,6 +91,33 @@ Organizations:
 			  Port: 7051
 
 
+  - &DT
+
+  	Name: DT
+
+  	ID: DTMSP
+
+  	MSPDir: crypto-config/peerOrganizations/dt.blackcreek.tech/msp
+
+
+  	Policies:
+ 	     Readers:
+				   Type: Signature
+				   Rule: "OR('DTMSP.admin','DTMSP.peer','DTMSP.client')"
+ 	     Writers:
+				   Type: Signature
+				   Rule: "OR('DTMSP.admin','DTMSP.client')"
+ 	     Admins:
+				   Type: Signature
+				   Rule: "OR('DTMSP.admin')"
+
+  	AnchorPeers:
+
+
+			- Host: peer0.dt.blackcreek.tech
+			  Port: 7051
+
+
 
 ################################################################################
 #
@@ -145,9 +145,9 @@ Capabilities:
     Channel: &ChannelCapabilities
 
 
-		  V1_4_4: false
+		  V1_4_4: true
 
-		  V1_4_2: true
+		  V1_4_2: false
 
 		  V1_3: false
 
@@ -161,9 +161,9 @@ Capabilities:
     Orderer: &OrdererCapabilities
 
 
-		  V1_4_4: false
+		  V1_4_4: true
 
-		  V1_4_2: true
+		  V1_4_2: false
 
 		  V1_3: false
 
@@ -177,9 +177,9 @@ Capabilities:
     Application: &ApplicationCapabilities
 
 
-		  V1_4_4: false
+		  V1_4_4: true
 
-		  V1_4_2: true
+		  V1_4_2: false
 
 		  V1_3: false
 
@@ -385,9 +385,9 @@ Profiles:
             BlackCreekNetwork:
                 Organizations:
                 
-                		 - * BLACKCREEK 
                 		 - * DC 
                 		 - * DP 
+                		 - * DT 
     BlackCreekChannel:
         Consortium: BlackCreekNetwork
         <<: *ChannelDefaults
@@ -395,9 +395,9 @@ Profiles:
             <<: *ApplicationDefaults
             Organizations:
                 
-                		 - * BLACKCREEK 
                 		 - * DC 
                 		 - * DP 
+                		 - * DT 
             Capabilities:
                 <<: *ApplicationCapabilities
 
@@ -462,6 +462,6 @@ Profiles:
             BlackCreekNetwork:
                 Organizations:
                 
-                 - * BLACKCREEK 
                  - * DC 
                  - * DP 
+                 - * DT 

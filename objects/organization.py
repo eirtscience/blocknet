@@ -82,6 +82,11 @@ class Organization(Common):
             return self.list_peer[0]
         return
 
+    def getGossipPeer(self):
+        if len(self.list_peer) > 1:
+            return self.list_peer[1]
+        return
+
     def getConfigurationPath(self):
         return self.getDomain()
 

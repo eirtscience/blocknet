@@ -32,7 +32,7 @@ class Console:
 
     #     if default:
     #         input_int = input("{} [{}]: ".format(label, default))
-    #         if not input_int:
+    #         if input_int:
     #             return default
     #         return bool_value(input_int)
 
@@ -60,6 +60,19 @@ class Console:
             return int(input("{}: ".format(label)))
         except ValueError:
             return 0
+
+    @classmethod
+    def get_bool(self, label):
+        list_choice = ["YES", "NO", "N", "Y", "TRUE", "FALSE"]
+        bool_input = input("{} {}:".format(label, list_choice))
+
+        if bool_input.upper() in list_choice:
+            bool_input = bool_input.lower()
+            if bool_input in ["yes", "y", "true"]:
+                return True
+            return False
+        else:
+            return self.get_bool(label)
 
     @classmethod
     def choice(self, label, list_choice=None, default_choice=0, choice_pos=False):

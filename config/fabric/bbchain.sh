@@ -168,9 +168,9 @@ function networkUp() {
   if [ "${CERTIFICATE_AUTHORITIES}" == "true" ]; then
     COMPOSE_FILES="${COMPOSE_FILES} -f ${COMPOSE_FILE_CA}"
 
-    export BYFN_CA _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / blackcreek.tech / ca & & ls * _sk) 
-    export BYFN_CA1 _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dc.blackcreek.tech / ca & & ls * _sk) 
-    export BYFN_CA2 _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dp.blackcreek.tech / ca & & ls * _sk) 
+    export BYFN_CA _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dc.blackcreek.tech / ca & & ls * _sk) 
+    export BYFN_CA1 _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dp.blackcreek.tech / ca & & ls * _sk) 
+    export BYFN_CA2 _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dt.blackcreek.tech / ca & & ls * _sk) 
   fi
   if [ "${CONSENSUS_TYPE}" == "kafka" ]; then
     COMPOSE_FILES="${COMPOSE_FILES} -f ${COMPOSE_FILE_KAFKA}"
@@ -279,9 +279,9 @@ function upgradeNetwork() {
     if [ "${CERTIFICATE_AUTHORITIES}" == "true" ]; then
       COMPOSE_FILES="${COMPOSE_FILES} -f ${COMPOSE_FILE_CA}"
 
-    export BYFN_CA _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / blackcreek.tech / ca & & ls * _sk) 
-    export BYFN_CA1 _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dc.blackcreek.tech / ca & & ls * _sk) 
-    export BYFN_CA2 _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dp.blackcreek.tech / ca & & ls * _sk) 
+    export BYFN_CA _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dc.blackcreek.tech / ca & & ls * _sk) 
+    export BYFN_CA1 _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dp.blackcreek.tech / ca & & ls * _sk) 
+    export BYFN_CA2 _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / dt.blackcreek.tech / ca & & ls * _sk) 
     fi
     if [ "${CONSENSUS_TYPE}" == "kafka" ]; then
       COMPOSE_FILES="${COMPOSE_FILES} -f ${COMPOSE_FILE_KAFKA}"
@@ -301,7 +301,7 @@ function upgradeNetwork() {
     docker cp -a orderer.blackcreek.tech:/var/hyperledger/production/orderer $LEDGERS_BACKUP/orderer.blackcreek.tech
     docker-compose $COMPOSE_FILES up -d --no-deps orderer.blackcreek.tech
 
-    for PEER in peer0.blackcreek.tech peer0.dc.blackcreek.tech peer1.dc.blackcreek.tech peer0.dp.blackcreek.tech peer1.dp.blackcreek.tech; do
+    for PEER in peer0.dc.blackcreek.tech peer1.dc.blackcreek.tech peer0.dp.blackcreek.tech peer1.dp.blackcreek.tech peer0.dt.blackcreek.tech peer1.dt.blackcreek.tech; do
       echo "Upgrading peer $PEER"
 
       # Stop the peer and backup its ledger
@@ -420,17 +420,17 @@ function replacePrivateKey() {
   # actual values of the private key file names for the two CAs.
   CURRENT_DIR=$PWD
 
-  cd crypto-config/peerOrganizations/blackcreek.tech/ca/
+  cd crypto-config/peerOrganizations/dc.blackcreek.tech/ca/
   PRIV_KEY=$(ls *_sk)
   cd "$CURRENT_DIR"
   sed $OPTS "s/CA_PRIVATE_KEY/${PRIV_KEY}/g" docker-compose-e2e.yaml
             
-  cd crypto-config/peerOrganizations/dc.blackcreek.tech/ca/
+  cd crypto-config/peerOrganizations/dp.blackcreek.tech/ca/
   PRIV_KEY=$(ls *_sk)
   cd "$CURRENT_DIR"
   sed $OPTS "s/CA1_PRIVATE_KEY/${PRIV_KEY}/g" docker-compose-e2e.yaml
             
-  cd crypto-config/peerOrganizations/dp.blackcreek.tech/ca/
+  cd crypto-config/peerOrganizations/dt.blackcreek.tech/ca/
   PRIV_KEY=$(ls *_sk)
   cd "$CURRENT_DIR"
   sed $OPTS "s/CA2_PRIVATE_KEY/${PRIV_KEY}/g" docker-compose-e2e.yaml
@@ -498,7 +498,7 @@ generateExplorerCertificate()
 
     cp ${EXPLORER_DIR}/app/config/connection-profile/blackcreek_template.json ${EXPLORER_DIR}/app/config/connection-profile/blackcreek.json
 
-    cd crypto-config/peerOrganizations/blackcreek.tech/users/Admin@blackcreek.tech/msp/keystore/
+    cd crypto-config/peerOrganizations/blackcreek.tech/users/admin@blackcreek.tech/msp/keystore/
 
     admin_key=$(ls *_sk)
 
@@ -594,21 +594,6 @@ function generateChannelArtifacts() {
 
   echo
   echo "#################################################################"
-  echo "#######    Generating anchor peer update for BLACKCREEKMSP   ##########"
-  echo "#################################################################"
-  set -x
-  configtxgen -profile BlackCreekChannel -outputAnchorPeersUpdate \
-    ./channel-artifacts/BLACKCREEKMSPanchors.tx -channelID $CHANNEL_NAME -asOrg BLACKCREEKMSP
-  res=$?
-  set +x
-  if [ $res -ne 0 ]; then
-    echo "Failed to generate anchor peer update for BLACKCREEKMSP..."
-    exit 1
-  fi
-            
-
-  echo
-  echo "#################################################################"
   echo "#######    Generating anchor peer update for DCMSP   ##########"
   echo "#################################################################"
   set -x
@@ -633,6 +618,21 @@ function generateChannelArtifacts() {
   set +x
   if [ $res -ne 0 ]; then
     echo "Failed to generate anchor peer update for DPMSP..."
+    exit 1
+  fi
+            
+
+  echo
+  echo "#################################################################"
+  echo "#######    Generating anchor peer update for DTMSP   ##########"
+  echo "#################################################################"
+  set -x
+  configtxgen -profile BlackCreekChannel -outputAnchorPeersUpdate \
+    ./channel-artifacts/DTMSPanchors.tx -channelID $CHANNEL_NAME -asOrg DTMSP
+  res=$?
+  set +x
+  if [ $res -ne 0 ]; then
+    echo "Failed to generate anchor peer update for DTMSP..."
     exit 1
   fi
             
@@ -773,7 +773,7 @@ elif [ "${MODE}" == "generate" ]; then ## Generate Artifacts
 elif [ "${MODE}" == "restart" ]; then ## Restart the network
   networkDown
   networkUp
-## Upgrade the network from version 1.2.x to 1.3.x
+# Upgrade the network from version 1.2.x to 1.3.x
 elif [ "${MODE}" == "upgrade" ]; then
   upgradeNetwork
 elif [ "${MODE}" == "explorer" ]; then

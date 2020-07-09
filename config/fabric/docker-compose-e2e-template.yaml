@@ -8,11 +8,12 @@ version: '2'
 
 volumes:
 
-  peer0.blackcreek.tech: 
   peer0.dc.blackcreek.tech: 
   peer1.dc.blackcreek.tech: 
   peer0.dp.blackcreek.tech: 
   peer1.dp.blackcreek.tech: 
+  peer0.dt.blackcreek.tech: 
+  peer1.dt.blackcreek.tech: 
 
 networks:
   byfn:
@@ -20,26 +21,6 @@ services:
 
   
   ca:
-    image: hyperledger/fabric-ca:$IMAGE_TAG
-    restart: always
-    environment:
-      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
-      - FABRIC_CA_SERVER_CA_NAME=ca-blackcreek.tech
-      - FABRIC_CA_SERVER_TLS_ENABLED=true
-      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/blackcreek.tech-cert.pem
-      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
-    ports:
-      - "6057:7054"
-    command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/blackcreek.tech-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY -b admin:adminpw -d'
-    volumes:
-      - ./crypto-config/peerOrganizations/blackcreek.tech/ca/:/etc/hyperledger/fabric-ca-server-config
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-    container_name: blackcreek.tech
-    networks:
-      - byfn
-                
-  ca1:
     image: hyperledger/fabric-ca:$IMAGE_TAG
     restart: always
     environment:
@@ -59,7 +40,7 @@ services:
     networks:
       - byfn
                 
-  ca2:
+  ca0:
     image: hyperledger/fabric-ca:$IMAGE_TAG
     restart: always
     environment:
@@ -79,17 +60,28 @@ services:
     networks:
       - byfn
                 
-
-  
-  peer0.blackcreek.tech:
-    container_name: peer0.blackcreek.tech
+  ca1:
+    image: hyperledger/fabric-ca:$IMAGE_TAG
     restart: always
-    extends:
-      file:  base/docker-compose-base.yaml
-      service: peer0.blackcreek.tech
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-dt.blackcreek.tech
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/dt.blackcreek.tech-cert.pem
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
+    ports:
+      - "6057:7054"
+    command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/dt.blackcreek.tech-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY -b admin:adminpw -d'
+    volumes:
+      - ./crypto-config/peerOrganizations/dt.blackcreek.tech/ca/:/etc/hyperledger/fabric-ca-server-config
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    container_name: dt.blackcreek.tech
     networks:
       - byfn
-                    
+                
+
+  
   orderer.blackcreek.tech:
     container_name: orderer.blackcreek.tech
     restart: always
@@ -132,6 +124,24 @@ services:
     extends:
       file:  base/docker-compose-base.yaml
       service: peer1.dp.blackcreek.tech
+    networks:
+      - byfn
+                    
+  peer0.dt.blackcreek.tech:
+    container_name: peer0.dt.blackcreek.tech
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.dt.blackcreek.tech
+    networks:
+      - byfn
+                    
+  peer1.dt.blackcreek.tech:
+    container_name: peer1.dt.blackcreek.tech
+    restart: always
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer1.dt.blackcreek.tech
     networks:
       - byfn
                     
