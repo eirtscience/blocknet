@@ -1,3 +1,4 @@
+#!/env/python
 
 from objects.network import Network
 from objects.organization import Organization
@@ -139,6 +140,34 @@ def add_consurtium():
     network.addconsurtium(channelname=channelname)
 
 
+def add_chaincode():
+    print('''
+################################################################################
+#
+#  
+#  SECTION: ChainCode
+#
+#
+################################################################################
+
+    ''')
+
+    generate_chaincode = Console.choice(label="Do you want to generate a chaincode?",
+                                        list_choice=["YES", "NO"], default_choice=1).lower()
+
+    if generate_chaincode == "yes":
+        data = {}
+        network.orderer.generate_chainecode = True
+        data["name"] = Console.get_string("Name", must_supply=True)
+        data["language"] = Console.choice("Language", list_choice=[
+            "go", "node", "java"])
+        data["directory"] = Console.get_string("Directory", must_supply=True)
+
+        network.addChainCode(data["name"], data)
+    else:
+        network.orderer.generate_chainecode = False
+
+
 def get_org():
 
     print('''
@@ -177,7 +206,6 @@ def get_org():
 
         network.addorg(organization=organization)
         index += 1
-    network.generate()
 
 
 def start():
@@ -186,3 +214,7 @@ def start():
     add_consurtium()
     add_orderer()
     get_org()
+    add_chaincode()
+    network.generate()
+
+    #Console.run("bash ./config/fabric/env.sh")

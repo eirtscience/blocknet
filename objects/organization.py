@@ -10,7 +10,7 @@ class Organization(Common):
     def __init__(self, name=None, type_org=None, domain=None, has_anchor=False):
         super().__init__()
         self.name = name
-        self.id = None
+        self.id = "{}MSP".format(self.name)
         self.mspdir = None
         self.has_anchor = has_anchor
         self.type_org = type_org
@@ -81,6 +81,9 @@ class Organization(Common):
         if len(self.list_peer) > 0:
             return self.list_peer[0]
         return
+
+    def getConfigurationPath(self):
+        return self.getDomain()
 
     def dump(self):
 

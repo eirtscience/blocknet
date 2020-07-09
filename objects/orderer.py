@@ -7,6 +7,7 @@ from .organization import Organization
 from .peer import Peer
 from .policies import Policies
 from .server import Server, NetworkServer
+from .chaincode import ChainCode
 
 
 class BatchSize:
@@ -53,7 +54,30 @@ class Orderer(CapabilitiesHandler):
         self.etcdraft = Raft()
         self.number_of_orderer = data.get("number_of_orderer")
         self.name = "OrdererDefaults"
+        self.generate_chainecode = False
         self.list_orderer = []
+        self.list_chaincode = {}
+
+    def getDomain(self):
+        return self.organization.domain
+
+    def add_chaincode(self, name, data):
+        if name:
+            chain_code = ChainCode(**data)
+            self.list_chaincode[name] = chain_code
+
+    def getChainCode(self, name):
+        '''
+        Returns:
+            (ChainCode): Get the chaincode by its name
+        '''
+        return self.list_chaincode.get(name)
+
+    def getInitialChainCode(self):
+        if len(self.list_chaincode) > 0:
+            first_chaincode = list(self.list_chaincode.keys())[0]
+            return self.getChainCode(first_chaincode)
+        return
 
     def create_orderer(self):
 
@@ -101,6 +125,9 @@ class Orderer(CapabilitiesHandler):
 
     def getHostname(self):
         return self.server.host
+
+    def getHostport(self):
+        return self.server.port
 
     def getAnchorPeer(self):
         return self.server.getinternal_address()

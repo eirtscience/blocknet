@@ -147,9 +147,9 @@ Capabilities:
 
 		  V1_4_4: false
 
-		  V1_4_2: false
+		  V1_4_2: true
 
-		  V1_3: true
+		  V1_3: false
 
 		  V1_2: false
 
@@ -163,9 +163,9 @@ Capabilities:
 
 		  V1_4_4: false
 
-		  V1_4_2: false
+		  V1_4_2: true
 
-		  V1_3: true
+		  V1_3: false
 
 		  V1_2: false
 
@@ -179,9 +179,9 @@ Capabilities:
 
 		  V1_4_4: false
 
-		  V1_4_2: false
+		  V1_4_2: true
 
-		  V1_3: true
+		  V1_3: false
 
 		  V1_2: false
 
@@ -388,7 +388,7 @@ Profiles:
                 		 - * BLACKCREEK 
                 		 - * DC 
                 		 - * DP 
-    BlackcreekChannel:
+    BlackCreekChannel:
         Consortium: BlackCreekNetwork
         <<: *ChannelDefaults
         Application:
