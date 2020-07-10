@@ -139,7 +139,8 @@ def add_network():
     select_version = Console.choice(
         "Select Network version", list_version)
 
-    name = Console.get_string("Name", must_supply=True)
+    name = Console.get_string("Name", default=(
+        network.admin.domain.split(".")[0].capitalize())+"Network")
 
     network.list_version[list_version[0]] = False
     network.list_version[select_version] = True
@@ -233,8 +234,8 @@ def get_org():
 
 
 def start():
-    add_network()
     add_admin()
+    add_network()
     add_consurtium()
     add_orderer()
     get_org()

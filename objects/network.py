@@ -104,6 +104,13 @@ class Network:
             return list_org[number]
         return list_org
 
+    def getInitialOrganization(self):
+        '''
+        Returns:
+          Organization: 
+        '''
+        return self.getOrganization(0)
+
     def addnetwork_admin(self, data):
         self.admin = NetworkAdministrator(data)
         self.genesis = Genesis(
@@ -2623,16 +2630,54 @@ services:
             "docker-compose-base.yaml", template)
 
     def create_explorer_profile_file(self):
+
+        org = self.getInitialOrganization()
+
+        list_orderer = []
+
+        for orderer in self.orderer.getAllOrderer():
+            list_orderer.append("""
+		"{0}":{{
+			"url": "grpc://{1}"
+		}}
+          """.format(orderer.host, orderer.getinternal_address()))
+
+        peer_template = []
+        peer_name_template = []
+
+        for peer in org.list_peer:
+
+            peer_name_template.append("""
+"{}": {{}}
+            """.format(peer.getHostname()))
+
+            peer_template.append("""
+		"{0}": {{
+            "url": "grpcs://{1}",
+			"tlsCACerts": {{
+				"path": "/tmp/crypto/peerOrganizations/{2}/peers/{0}/tls/ca.crt"
+			}},
+			"requests": "grpcs://{1}",
+			"grpcOptions": {{
+				"ssl-target-name-override": "{0}"
+			}}
+		}}
+        """.format(
+                peer.getHostname(),
+                peer.getinternal_address(),
+                org.getDomain()
+            ))
+
         template = """
 {{
 
 	"version": "1.0.0",
 	"client": {{
 		"tlsEnable": true,
-		"adminUser": "admin",
-		"adminPassword": "adminpw",
+		"adminUser": "{6}",
+		"adminPassword": "{7}",
 		"enableAuthentication": false,
-		"organization": "BLACKCREEK",
+		"organization": "{3}",
 		"connection": {{
 			"timeout": {{
 				"peer": {{
@@ -2643,12 +2688,12 @@ services:
 		}}
 	}},
 	"channels": {{
-		"blackcreekchannel": {{
+		"{2}": {{
 			"orderer":[
 				"{1}"
 			],
 			"peers": {{
-				"peer0.blackcreek.tech": {{}}
+				{9}
 			}},
 			"connection": {{
 				"timeout": {{
@@ -2662,41 +2707,36 @@ services:
 		}}
 	}},
 	"orderers":{{
-		"orderer.blackcreek.com":{{
-			"url": "grpc://orderer.blackcreek.tech:7050"
-		}},
-		"orderer2.blackcreek.com":{{
-			"url": "grpc://orderer2.blackcreek.tech:7050"
-		}}
+		{10}
 	}},
 	"organizations": {{
-		"BLACKCREEK": {{
-			"mspid": "BLACKCREEKMSP",
+		"{3}": {{
+			"mspid": "{4}",
 			"fullpath": true,
 			"adminPrivateKey": {{
-				"path": "/tmp/crypto/peerOrganizations/blackcreek.tech/users/{0}/msp/keystore/ADMIN_KEY"
+				"path": "/tmp/crypto/peerOrganizations/{5}/users/{0}/msp/keystore/ADMIN_KEY"
 			}},
 			"signedCert": {{
-				"path": "/tmp/crypto/peerOrganizations/blackcreek.tech/users/{0}/msp/signcerts/{0}-cert.pem"
+				"path": "/tmp/crypto/peerOrganizations/{5}/users/{0}/msp/signcerts/{0}-cert.pem"
 			}}
 		}}
 	}},
 	"peers": {{
-		"peer0.blackcreek.tech": {{
-            "url": "grpcs://peer0.blackcreek.tech:7051",
-			"tlsCACerts": {{
-				"path": "/tmp/crypto/peerOrganizations/blackcreek.tech/peers/peer0.blackcreek.tech/tls/ca.crt"
-			}},
-			"requests": "grpcs://peer0.blackcreek.tech:7051",
-			"grpcOptions": {{
-				"ssl-target-name-override": "peer0.blackcreek.tech"
-			}}
-		}}
+		{8}
 	}}
 }}
       """.format(
             self.admin.email_address,
-            self.orderer.getHostname()
+            self.orderer.getHostname(),
+            self.channel().name,
+            org.name,
+            org.id,
+            org.getDomain(),
+            self.admin.login_username,
+            self.admin.login_password,
+            ",".join(peer_template),
+            ",".join(peer_name_template),
+            ",".join(list_orderer)
         )
 
         NetworkFileHandler.create_explorer_file(
