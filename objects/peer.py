@@ -4,12 +4,13 @@ from .server import Server, NetworkServer
 
 
 class Peer(Server):
-    def __init__(self, name=None, domain=None):
+    def __init__(self, name=None, domain=None, peer_id=0):
         self.anchor = AnchorPeer(name)
         self.name = name
         self.domain = domain
+        self.peer_id = peer_id
         self.couchdb = None
-        NetworkServer.PEER_SERVER_EXTERN_PORT += 1
+        NetworkServer.PEER_SERVER_EXTERN_PORT += 10
         super().__init__(self.getHostname(),
                          NetworkServer.PEER_SERVER_EXTERN_PORT)
         self.intern_port = NetworkServer.PEER_SERVER_INTERN_PORT
@@ -30,7 +31,7 @@ class Peer(Server):
 
     def create_couchdb(self):
         self.couchdb = Server("couchdb." + self.getHostname())
-        NetworkServer.COUCHDB_SERVER_EXTERN_PORT += 1
+        NetworkServer.COUCHDB_SERVER_EXTERN_PORT += 5
         self.couchdb.port = NetworkServer.COUCHDB_SERVER_EXTERN_PORT
         self.couchdb.intern_port = NetworkServer.COUCHDB_SERVER_INTERN_PORT
 

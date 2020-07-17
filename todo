@@ -1,0 +1,46 @@
+projects:
+
+
+Todo:
+  ☐ Create the following file:
+      ☐ hyperledger-explorer
+        ☐ app
+          ☐ wait.sh
+          ☐ start.sh
+          ☐ config
+            ☐ connection-profile
+              ☐ template.json
+              ☐ "company_name".json
+            ☐ config.json
+            ☐ configtx.yaml
+      ☐ hyperledger-fabric
+        ☐ base
+          ☐ docker-compose-base.yaml
+          ☐ peer-base.yaml
+        ☐ bin
+        ☐ channel-artifacts
+        ☐ scripts
+          ☐ bbcmanager
+          ☐ capabilities.json
+          ☐ ccp-generate.sh
+          ☐ script.sh
+          ☐ utils.sh
+          ☐ wait-for
+          ☐ update_to_v14.sh
+        ☐ bbchain.sh
+        ☐ ccp-template.json
+        ☐ ccp-template.yaml
+        ☐ configtx.yaml
+        ☐ crypto-config.yaml
+        ☐ docker-compose-ca.yaml
+        ☐ docker-compose-cli.yaml
+        ☐ docker-compose-couch.yaml
+        ☐ docker-compose-e2e-template.yaml
+        ☐ docker-compose-e2e-template.yaml
+        ☐ docker-compose-etcdraft2.yaml
+        ☐ docker-compose-kafka.yaml
+        ☐ network
+        ☐ env
+  ☐ When creating the chaincode check if the chaincode folder exists before the end of the generation
+  ☐ Allow the user to choose the peer and organization that the chaincode will be install on
+  ☐ 

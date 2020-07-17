@@ -10,7 +10,8 @@ class Consurtium:
         self.list_version = list_version
 
     def addChannel(self, name=None):
-        self.channel.append(Channel(name=name, list_version=self.list_version))
+        self.channel.append(
+            Channel(name=name, list_version=self.list_version))
 
     def numberOfChannel(self):
         return len(self.channel)

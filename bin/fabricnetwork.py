@@ -3,6 +3,10 @@
 from objects.network import Network
 from objects.organization import Organization
 from .console import Console
+from objects.fabric_repo import FabricRepo
+from objects.network_file_handler import NetworkFileHandler
+from os import walk, path, makedirs
+import subprocess
 from sys import exit
 
 
@@ -58,8 +62,8 @@ def add_composer_explorer():
 #
 #   SECTION: Composer Explorer
 #
-#   - This section will create a Hyperledger composer UI to view the blockchain
-#     transaction.
+#   - This section will create a Hyperledger Explorer UI to view the blockchain
+#     transaction and configuration.
 #
 ################################################################################
     ''')
@@ -67,10 +71,13 @@ def add_composer_explorer():
     create_composer = Console.get_bool(
         "Do you want to install Hyperledger composer?")
 
-    if create_composer:
-        port_number = Console.get_int("Enter the port number", default=8080)
-        data["port"] = port_number
+    port_number = 8092
 
+    if create_composer:
+        port_number = Console.get_int(
+            "Enter the port number", default=port_number)
+
+    data["port"] = port_number
     data["install"] = create_composer
 
     network.add_hy_composer(data)
@@ -92,12 +99,12 @@ def add_orderer():
     orderer_name = Console.get_string(
         "Network Orderer name", default="Orderer")
 
-    number_of_orderer = Console.get_int(
-        "Total Number of Orderer", default=5)
-
     list_type = ["etcdraft", "solo", "kafka"]
 
     orderer_type = Console.choice("Type", list_type)
+
+    number_of_orderer = Console.get_int(
+        "Total Number of Orderer", default=5)
 
     batchtimeout = Console.get_int("BatchTimeout", default=2)
     maxmessagecount = Console.get_int("MaxMessageCount", default=10)
@@ -178,7 +185,7 @@ def add_chaincode():
     ''')
 
     generate_chaincode = Console.choice(label="Do you want to generate a chaincode?",
-                                        list_choice=["YES", "NO"], default_choice=1).lower()
+                                        list_choice=["YES", "NO"]).lower()
 
     if generate_chaincode == "yes":
         data = {}
@@ -188,7 +195,26 @@ def add_chaincode():
             "go", "node", "java"])
         data["directory"] = Console.get_string("Directory", must_supply=True)
 
+        if not path.isdir(data["directory"]):
+            Console.run("sudo mkdir -p {}".format(data["directory"]))
+
+        can_instantiate_chaincode = Console.get_bool(
+            "Do you want to instantiate the chaincode ?")
+
+        data["instantiate_chaincode"] = can_instantiate_chaincode
+
+        if can_instantiate_chaincode:
+            chaincode_function = Console.get_file("Please input a json file with the init function of your chaincode \n Example: \
+                {\"function\":\"initLedger\",\"Args\":[]}")
+            data["function"] = chaincode_function
+
+            querry_chaincode = Console.get_file(
+                "Please input a json file with the response data to verify the querry result")
+
+            data["querry_chaincode"] = querry_chaincode
+
         network.addChainCode(data["name"], data)
+
     else:
         network.orderer.generate_chainecode = False
 
@@ -211,7 +237,7 @@ def get_org():
     index = 1
     while index <= nbr_of_orgs:
         print("\n\tOrg {} ".format(index))
-        organization = Organization(has_anchor=True)
+        organization = Organization(has_anchor=True, index=(index-1))
         organization.name = Console.get_string("\t\tName", must_supply=True)
         organization.domain = Console.get_string(
             "\t\tDomain", default="{}.com".format(organization.name.lower()))
@@ -229,8 +255,32 @@ def get_org():
 
         organization.create_certificate()
 
-        network.addorg(organization=organization)
+        network.addorg(organization=organization, index=(index-1))
         index += 1
+
+
+def run_network():
+
+    fa_repo = FabricRepo(network.current_version)
+
+    fa_repo.getRepoByVersion()
+
+    NetworkFileHandler.create_directory()
+
+    bin_path = "config/hyperledger-fabric/bin/"
+
+    list_dir = walk(bin_path)
+
+    for _, __, list_file in list_dir:
+
+        for bin_file in list_file:
+            subprocess.call(
+                "sudo chmod +x {} ".format(path.join(bin_path, bin_file)), shell=True)
+
+    is_conifg_file_generate = network.generate()
+
+    if is_conifg_file_generate:
+        print("Now run the file ./exec.sh to start the network")
 
 
 def start():
@@ -241,6 +291,4 @@ def start():
     get_org()
     add_chaincode()
     add_composer_explorer()
-    network.generate()
-
-    #Console.run("bash ./config/fabric/env.sh")
+    run_network()

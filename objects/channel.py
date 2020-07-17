@@ -35,13 +35,24 @@ Channel: &{}
     # For Channel policies, their canonical path is
     #   /Channel/<PolicyName>
     Policies:
-        {}
+        # Who may invoke the 'Deliver' API
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        # Who may invoke the 'Broadcast' API
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        # By default, who may modify elements at this config level
+        Admins:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Admins"
 
     # Capabilities describes the channel level capabilities, see the
     # dedicated Capabilities section elsewhere in this file for a full
     # description
     Capabilities:
         <<: *{}
-'''.format(self.default_name, self.getAdminRolePolicies(), self.capability_name)
+'''.format(self.default_name, self.capability_name)
 
         return app_str

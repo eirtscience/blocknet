@@ -25,7 +25,7 @@ class NetworkAdministrator(Organization):
         self.first_name = data.get("first_name")
         self.domain = data.get("domain")
         self.last_name = data.get("last_name")
-        self.email_address = data.get("email_address")
+        self.email_address = data.get("email_address").capitalize()
         self.organization_name = data.get("organization_name")
         self.login_username = data.get("login_name")
         self.login_password = data.get("login_password")
@@ -50,6 +50,9 @@ class Network:
         self.hy_composer = None
         self.__cache_server = CacheServer()
 
+    def getCurrentVersion(self):
+        return self.current_version.replace("_", ".").strip("V")
+
     def add_hy_composer(self, data):
         self.hy_composer = HyperledgerComposer(**data)
 
@@ -61,8 +64,11 @@ class Network:
         if ischaincode_exist:
             chaincode = self.orderer.getInitialChainCode()
             if return_type == None:
-                return str(ischaincode_exist).lower(), chaincode.name
+                return str(not ischaincode_exist).lower(), chaincode.name, chaincode.directory, chaincode.language
             return chaincode
+        else:
+            if return_type == None:
+                return str(not ischaincode_exist).lower(), "", "", ""
         return None,
 
     def addChainCode(self, name, data):
@@ -87,15 +93,19 @@ class Network:
         if (self.consurtium.numberOfChannel() == 1):
             return self.consurtium.getInitialChannel()
 
-    def addorg(self, name=None, domain=None, organization=None):
+    def addorg(self, name=None, domain=None, organization=None, index=0):
         org_domain = None
         if name and organization == None:
             org_domain = self.getOrgDomain(name, domain)
-            self.organization[org_domain] = Organization(
-                name, domain=domain, has_anchor=True)
+            organization = Organization(
+                name, domain=domain, has_anchor=True, index=index)
+            self.organization[org_domain] = organization
         else:
             org_domain = organization.getDomain()
             self.organization[org_domain] = organization
+
+        if organization.isAdmin():
+            self.admin.organization = organization
 
     def getOrganization(self, number=-1):
         list_org = list(self.organization.values())
@@ -107,22 +117,25 @@ class Network:
     def getInitialOrganization(self):
         '''
         Returns:
-          Organization: 
+          Organization:
         '''
         return self.getOrganization(0)
+
+    def getAdminEmail(self):
+        return self.admin.organization.getAdminEmail()
 
     def addnetwork_admin(self, data):
         self.admin = NetworkAdministrator(data)
         self.genesis = Genesis(
             (self.admin.organization_name.lower()).capitalize())
 
-        organization = Organization(
-            self.admin.organization_name, domain=self.admin.domain, type_org="admin", has_anchor=True)
+        # organization = Organization(
+        #     self.admin.organization_name, domain=self.admin.domain, type_org="admin", has_anchor=True)
 
         # organization.addAllPeers(data.get("number_of_peer"))
         # self.addorg(organization=organization)
 
-        self.admin.organization = organization
+        #self.admin.organization = organization
 
     def getAdminOrg(self):
         '''
@@ -151,8 +164,6 @@ class Network:
                 {} - * {} """.format(padding_left, org.name.upper())
                 list_org_name.append(org.name.lower())
                 list_org_obj.append(org)
-        self.__cache_server.set_session("list_org", list_org_name)
-        self.__cache_server.set_session("list_org_obj", list_org_obj)
 
         return list_org
 
@@ -167,12 +178,12 @@ class Network:
     # {0}:
     # ---------------------------------------------------------------------------
     - Name: {0}
-        Domain: {1}
-        EnableNodeOUs: {2}
-        Template:
-          Count: {3}
-        Users:
-          Count: 1
+      Domain: {1}
+      EnableNodeOUs: {2}
+      Template:
+        Count: {3}
+      Users:
+        Count: 1
         """.format(org.name, org.getDomain(), org.getEnableNodeOUsAsStr(), org.peerLen())
 
         return peers_config
@@ -250,10 +261,25 @@ services:
    {}
         """.format(self.ca_certificate_template())
 
-        with open(NetworkFileHandler.networkpath("docker-compose-ca.yaml"), "w") as f:
-            f.write(template)
+        # with open(NetworkFileHandler.networkpath("docker-compose-ca.yaml"), "w") as f:
+        #     f.write(template)
+
+        NetworkFileHandler.create_fabric_file(
+            "docker-compose-ca.yaml", template)
 
     def create_profile(self):
+
+        list_org_name = ""
+        list_org_last = ""
+
+        for org_name in self.getCachedData("list_org"):
+            list_org_name += """
+                    - *{}
+          """.format(org_name.upper())
+
+            list_org_last += """
+                - *{}
+            """.format(org_name.upper())
 
         app_str = """
 
@@ -278,7 +304,8 @@ Profiles:
         Consortiums:
             {4}:
                 Organizations:
-                {5}
+{5}
+
     {13}:
         Consortium: {4}
         <<: *{0}
@@ -314,22 +341,23 @@ Profiles:
             {4}:
                 Organizations:
                 {14}
-""".format(self.channel().default_name,
-           self.orderer.name,
-           self.orderer.organization.name,
-           self.orderer.capability_name,
-           self.name,
-           self.getListOrg(padding_left="\t"*2),
-           self.application.name,
-           self.application.capability_name,
-           self.channel().capability_name,
-           self.orderer.type,
-           self.orderer.create_consenter(padding_left="\t"*2),
-           self.orderer.dump_all_addresses(),
-           self.genesis.getName(),
-           self.channel().name,
-           self.getListOrg()
-           )
+""".format(
+            self.channel().default_name,
+            self.orderer.name,
+            self.orderer.organization.name,
+            self.orderer.capability_name,
+            self.name,
+            list_org_name,
+            self.application.name,
+            self.application.capability_name,
+            self.channel().capability_name,
+            self.orderer.type,
+            self.orderer.create_consenter(padding_left="\t"*2),
+            self.orderer.dump_all_addresses(),
+            self.genesis.getName(),
+            self.channel().name,
+            list_org_last
+        )
 
         return app_str
 
@@ -387,6 +415,12 @@ Profiles:
 
         chain_code = self.getInitialChainCode(return_type=object)
 
+        chain_code_data = ""
+
+        if self.hasChainCode():
+            chain_code_data = """- {0}/{1}:/opt/gopath/src/github.com/chaincode/{2}/{3}/{1}/""".format(chain_code.directory,
+                                                                                                       chain_code.language, org.name.lower(), chain_code.name)
+
         template = """
 # Copyright IBM Corp. All Rights Reserved.
 #
@@ -431,7 +465,7 @@ services:
     volumes:
         - /var/run/:/host/var/run/
         - ./chaincode/:/opt/gopath/src/github.com/chaincode
-        - {8}/{9}:/opt/gopath/src/github.com/chaincode/{7}/node/
+        {7}
         - ./crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
         - ./scripts:/opt/gopath/src/github.com/hyperledger/fabric/peer/scripts/
         - ./channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
@@ -469,17 +503,18 @@ services:
             volumes,
                    services,
                    org.getAnchorPeer().getHostname(),
-                   org.id,
+                   org.getId(),
                    depends_on,
-                   self.admin.email_address,
+                   self.getAdminEmail().capitalize(),
                    org.getDomain(),
-                   org.name.lower(),
-                   chain_code.directory,
-                   chain_code.language
+                   chain_code_data
         )
 
-        with open(NetworkFileHandler.networkpath("docker-compose-cli.yaml"), "w") as f:
-            f.write(template)
+        # with open(NetworkFileHandler.networkpath("docker-compose-cli.yaml"), "w") as f:
+        #     f.write(template)
+
+        NetworkFileHandler.create_fabric_file(
+            "docker-compose-cli.yaml", template)
 
     def create_capability(self):
 
@@ -530,8 +565,189 @@ Capabilities:
         return capability_str
 
     def create_configtx_file(self):
-        with open(NetworkFileHandler.networkpath("configtx.yaml"), "w") as f:
-            file_begin = '''
+
+        list_org_name = []
+        list_org_obj = []
+
+        section_org = """
+    - &{0}
+        # DefaultOrg defines the organization which is used in the sampleconfig
+        # of the fabric.git development environment
+        Name: {0}
+
+        # ID to load the MSP definition as
+        ID: {0}MSP
+
+        # MSPDir is the filesystem path which contains the MSP configuration
+        MSPDir: crypto-config/ordererOrganizations/{1}/msp
+
+        # Policies defines the set of policies at this level of the config tree
+        # For organization policies, their canonical path is usually
+        #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+        Policies:
+            Readers:
+                Type: Signature
+                Rule: "OR('{0}MSP.member')"
+            Writers:
+                Type: Signature
+                Rule: "OR('{0}MSP.member')"
+            Admins:
+                Type: Signature
+                Rule: "OR('{0}MSP.admin')"
+            """.format(self.orderer.organization.name, self.orderer.getDomain())
+
+        section_capability = """
+################################################################################
+#
+#   SECTION: Capabilities
+#
+#   - This section defines the capabilities of fabric network. This is a new
+#   concept as of v1.1.0 and should not be utilized in mixed networks with
+#   v1.0.x peers and orderers.  Capabilities define features which must be
+#   present in a fabric binary for that binary to safely participate in the
+#   fabric network.  For instance, if a new MSP type is added, newer binaries
+#   might recognize and validate the signatures from this type, while older
+#   binaries without this support would be unable to validate those
+#   transactions.  This could lead to different versions of the fabric binaries
+#   having different world states.  Instead, defining a capability for a channel
+#   informs those binaries without this capability that they must cease
+#   processing transactions until they have been upgraded.  For v1.0.x if any
+#   capabilities are defined (including a map with all capabilities turned off)
+#   then the v1.0.x peer will deliberately crash.
+#
+################################################################################
+Capabilities:
+        """
+
+        list_capability_version = {
+            "Channel": {
+                "V1_4_3": True,
+                "V1_3": False,
+                "V1_1": False
+            },
+            "Orderer": {
+                "V1_4_2": True,
+                "V1_1": False
+            },
+            "Application": {
+                "V1_4_2": True,
+                "V1_3": False,
+                "V1_2": False,
+                "V1_1": False
+            }
+        }
+
+        list_capability = ["Channel", "Orderer", "Application"]
+
+        for capability in list_capability:
+
+            section_capability += """
+    # {0} capabilities apply to both the orderers and the peers and must be
+    # supported by both.
+    # Set the value of the capability to true to require it.
+    {0}: &{0}Capabilities
+          """.format(capability)
+
+            for version, is_select in list_capability_version.get(capability).items():
+                section_capability += """
+        # {0} for {2} is a catchall flag for behavior which has been
+        # determined to be desired for all orderers and peers running at the {0}
+        # level, but which would be incompatible with orderers and peers from
+        # prior releases.
+        # Prior to enabling {0} {3} capabilities, ensure that all
+        # orderers and peers on a {3} are at {0} or later.
+        {0}: {1}
+          """.format(version, str(is_select).lower(), capability, capability.lower())
+
+        for org in self.getOrganization():
+
+            if isinstance(org, Organization):
+
+                list_org_name.append((org.name).lower())
+                list_org_obj.append(org)
+                anchor_peer = org.getAnchorPeer()
+
+                if org.isAdmin():
+                    section_org += """
+    - &{0}
+        # DefaultOrg defines the organization which is used in the sampleconfig
+        # of the fabric.git development environment
+        Name: {0}MSP
+
+        # ID to load the MSP definition as
+        ID: {0}MSP
+
+        MSPDir: crypto-config/peerOrganizations/{3}/msp
+
+        # Policies defines the set of policies at this level of the config tree
+        # For organization policies, their canonical path is usually
+        #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+        Policies:
+            Readers:
+                Type: Signature
+                Rule: "OR('{0}MSP.admin', '{0}MSP.peer', '{0}MSP.client')"
+            Writers:
+                Type: Signature
+                Rule: "OR('{0}MSP.admin','{0}MSP.peer','{0}MSP.client')"
+            Admins:
+                Type: Signature
+                Rule: "OR('{0}MSP.admin')"
+
+        # leave this flag set to true.
+        AnchorPeers:
+            # AnchorPeers defines the location of peers which can be used
+            # for cross org gossip communication.  Note, this value is only
+            # encoded in the genesis block in the Application section context
+            - Host: {1}
+              Port: {2}
+            """.format(
+                        org.name,
+                        anchor_peer.getHostname(),
+                        anchor_peer.intern_port,
+                        org.getDomain()
+                    )
+
+                else:
+                    section_org += """
+    - &{0}
+        # DefaultOrg defines the organization which is used in the sampleconfig
+        # of the fabric.git development environment
+        Name: {0}MSP
+
+        # ID to load the MSP definition as
+        ID: {0}MSP
+
+        MSPDir: crypto-config/peerOrganizations/{3}/msp
+
+        # Policies defines the set of policies at this level of the config tree
+        # For organization policies, their canonical path is usually
+        #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+        Policies:
+            Readers:
+                Type: Signature
+                Rule: "OR('{0}MSP.admin', '{0}MSP.peer', '{0}MSP.client')"
+            Writers:
+                Type: Signature
+                Rule: "OR('{0}MSP.admin', '{0}MSP.client')"
+            Admins:
+                Type: Signature
+                Rule: "OR('{0}MSP.admin')"
+
+        # leave this flag set to true.
+        AnchorPeers:
+            # AnchorPeers defines the location of peers which can be used
+            # for cross org gossip communication.  Note, this value is only
+            # encoded in the genesis block in the Application section context
+            - Host: {1}
+              Port: {2}
+                    """.format(
+                        org.name,
+                        anchor_peer.getHostname(),
+                        anchor_peer.intern_port,
+                        org.getDomain())
+
+        # with open(NetworkFileHandler.networkpath("configtx.yaml"), "w") as f:
+        template = '''
 # Copyright IBM Corp. All Rights Reserved.
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -547,23 +763,82 @@ Capabilities:
 #
 ################################################################################
 Organizations:
+    # SampleOrg defines an MSP using the sampleconfig.  It should never be used
+    # in production but may be used as a template for other definitions
+    {0}
 
-            '''
+{1}
 
-            f.write(file_begin)
+################################################################################
+#
+#   SECTION: Application
+#
+#   - This section defines the values to encode into a config transaction or
+#   genesis block for application related parameters
+#
+################################################################################
+Application: &ApplicationDefaults
 
-            f.write(self.orderer.dump())
-            f.write("\n\n")
+    # Organizations is the list of orgs which are defined as participants on
+    # the application side of the network
+    Organizations:
 
-            for org in self.getOrganization():
-                f.write(org.dump())
-                f.write("\n\n")
+    # Policies defines the set of policies at this level of the config tree
+    # For Application policies, their canonical path is
+    #   /Channel/Application/<PolicyName>
+    Policies:
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Admins"
 
-            f.write(self.create_capability())
-            f.write(self.application.dump_application())
-            f.write(self.orderer.dump_orderer())
-            f.write(self.channel().channel_dump())
-            f.write(self.create_profile())
+    Capabilities:
+        <<: *ApplicationCapabilities
+{2}
+
+{3}
+
+{4}
+
+            '''.format(
+            section_org,
+            section_capability,
+            self.orderer.dump_orderer(),
+            self.channel().channel_dump(),
+            self.create_profile()
+        )
+
+        #  template = file_begin
+
+        # template += self.orderer.dump()
+        # template += "\n\n"
+
+        # f.write(file_begin)
+
+        # f.write(self.orderer.dump())
+        # f.write("\n\n")
+        # template += org.dump()
+        # template += "\n\n"
+        # f.write(org.dump())
+        # f.write("\n\n")
+
+        # template += self.create_capability()
+        # template += self.application.dump_application()
+        # template += self.orderer.dump_orderer()
+        # template += self.channel().channel_dump()
+        # template += self.create_profile()
+
+        # f.write(self.create_capability())
+        # f.write(self.application.dump_application())
+        # f.write(self.orderer.dump_orderer())
+        # f.write(self.channel().channel_dump())
+        # f.write(self.create_profile())
+        NetworkFileHandler.create_fabric_file("configtx.yaml", template)
 
     def create_cryptoconfig_file(self):
 
@@ -602,8 +877,10 @@ Organizations:
            self.getPeersConfigForAllOrgs()
            )
 
-        with open(NetworkFileHandler.networkpath("crypto-config.yaml"), "w") as f:
-            f.write(template)
+        NetworkFileHandler.create_fabric_file("crypto-config.yaml", template)
+
+        # with open(NetworkFileHandler.networkpath("crypto-config.yaml"), "w") as f:
+        #     f.write(template)
 
     def create_couchdb(self):
         template = ""
@@ -664,7 +941,10 @@ services:
 
         """.format(self.create_couchdb())
 
-        self.create_file("docker-compose-couch.yaml", template)
+        NetworkFileHandler.create_fabric_file(
+            "docker-compose-couch.yaml", template)
+
+        # self.create_file("docker-compose-couch.yaml", template)
 
     def create_file(self, file_name, template):
         with open(NetworkFileHandler.networkpath(file_name), "w") as f:
@@ -767,14 +1047,16 @@ services:
   {1}
 
         """.format(volumes, service, certificate)
+        NetworkFileHandler.create_fabric_file(
+            "docker-compose-e2e-template.yaml", template)
 
-        self.create_file("docker-compose-e2e-template.yaml", template)
+        # self.create_file("docker-compose-e2e-template.yaml", template)
 
     def create_orderer(self):
         list_orderer = []
         list_orderer_host = []
 
-        for orderer in self.orderer.getAllOrderer(2):
+        for orderer in self.orderer.getAllOrderer(1):
             list_orderer.append("""
   {}: """.format(orderer.host))
 
@@ -822,7 +1104,9 @@ services:
 
         """.format(orderer, service)
 
-        self.create_file("docker-compose-etcdraft2.yaml", template)
+        # self.create_file("docker-compose-etcdraft2.yaml", template)
+        NetworkFileHandler.create_fabric_file(
+            "docker-compose-etcdraft2.yaml", template)
 
     def create_ccp_template(self):
 
@@ -947,40 +1231,48 @@ certificateAuthorities:
         """.format(json_org_peer, json_peer)
 
         for file_name, template_data in list_template.items():
-            self.create_file(file_name, template_data)
+            # self.create_file(file_name, template_data)
+            NetworkFileHandler.create_fabric_file(file_name, template_data)
 
     def create_env_file(self):
         image_tag = self.current_version.replace("_", ".").strip("V")
 
-        ischaincode_exist, chaincode = self.getInitialChainCode()
+        ischaincode_exist, chaincode, chaincode_directory, chaincode_language = self.getInitialChainCode()
 
         template = """
-COMPOSE_PROJECT_NAME=net
+COMPOSE_PROJECT_NAME={9}
 IMAGE_TAG={0}
-SYS_CHANNEL=
-ORDERER_TYPE=
+SYS_CHANNEL={1}
+ORDERER_TYPE={6}
 DATABASE_TYPE=
 CHANNEL_NAME={1}
 DELAY=
-LANGUAGE=
+LANGUAGE={8}
 TIMEOUT=
 VERBOSE=
 NO_CHAINCODE={3}
 COUNTER=1
 MAX_RETRY=10
-CHAINCODE_DIR=
+CHAINCODE_DIR={7}
 CHAINCODE_NAME={2}
-EXPLORER_PORT=
-RUN_EXPLORER=false
+EXPLORER_PORT={5}
+RUN_EXPLORER={4}
+COMPOSE_HTTP_TIMEOUT=200
         """.format(
             image_tag,
-                   self.channel().name,
+                   self.channel().name.lower(),
                    chaincode,
-                   ischaincode_exist
+                   ischaincode_exist,
+                   str(self.hy_composer.install).lower(),
+                   self.hy_composer.port,
+                   self.orderer.type,
+                   chaincode_directory,
+                   chaincode_language,
+                   self.name
+
         )
 
-        template_shell_exporter = """
-#!/bin/bash
+        template_shell_exporter = """#!/bin/bash
 
 source config/.env
 
@@ -998,8 +1290,11 @@ echo $CHAINCODE_NAME
 main
         """
 
-        self.create_file(".env", template)
-        self.create_file("env.sh", template_shell_exporter)
+        # self.create_file(".env", template)
+        # self.create_file("env.sh", template_shell_exporter)
+        NetworkFileHandler.create_fabric_file(".env", template)
+        NetworkFileHandler.create_fabric_file(
+            "env.sh", template_shell_exporter)
 
     def create_ccp_generate_template(self):
 
@@ -1007,10 +1302,10 @@ main
         index_main = 2
 
         template_main = """
-    ORG =${{{}}}""".format(index_main)
+    ORG=${{{}}}""".format(index_main)
 
         template = """
-    sed - e 's/\\${{ORG}}/${0}/' \\""".format(index)
+    sed -e "s#\\${{ORG}}#${0}#" \\""".format(index)
 
         template_exec = ["$ORG"]
 
@@ -1019,12 +1314,12 @@ main
 
         for i in range(self.getNumberOfPeers()):
             template += """
-        - e 's/\\${{P{0}PORT}}/${1}/' \\""".format(i, index)
+        -e "s#\\${{P{0}PORT}}#${1}#" \\""".format(i, index)
 
             template_exec.append("$P{}PORT".format(i))
 
             template_main += """
-    P{}PORT =${{{}}}""".format(i, index_main)
+    P{}PORT=${{{}}}""".format(i, index_main)
             index += 1
             index_main += 1
 
@@ -1033,34 +1328,34 @@ main
 
         for value in list_holder:
             template += """
-        - e "s#\\${{{}}}/${}/" \\""".format(value, index)
+        -e "s#\\${{{}}}#${}#" \\""".format(value, index)
 
             template_exec.append("${}".format(value))
 
             template_main += """
-    {} =${{{}}}""".format(value, index_main)
+    {}=${{{}}}""".format(value, index_main)
             index += 1
             index_main += 1
 
         for i in range(self.getNumberOfPeers()):
 
             template += """
-        - e "s#\\${{PEER{0}}}#${{{1}}}#" \\""".format(i, index)
+        -e "s#\\${{PEER{0}}}#${{{1}}}#" \\""".format(i, index)
 
             template_exec.append("$PEER{}".format(i))
 
             template_main += """
-    PEER{} =${{{}}}""".format(i, index_main)
+    PEER{}=${{{}}}""".format(i, index_main)
             index += 1
             index_main += 1
 
         template += """
-        - e "s#\\${{CANAME}}#${{{}}}#" \\""".format(index)
+        -e "s#\\${{CANAME}}#${{{}}}#" \\""".format(index)
 
         template_exec.append("$CANAME")
 
         template_main += """
-    CANAME =${{{}}}""".format(index_main)
+    CANAME=${{{}}}""".format(index_main)
 
         return template, template_main, " ".join(template_exec)
 
@@ -1068,13 +1363,11 @@ main
 
         template_json, template_main, template_args = self.create_ccp_generate_template()
 
-        template = '''
-#!/bin/bash
+        template = '''#!/bin/bash
 
+FABRIC_DIR=$PWD
 
-FABRIC_DIR =$PWD
-
-CONNECXION_PROFILE_DIR =${{FABRIC_PATH}}/connecxion-profile
+CONNECXION_PROFILE_DIR=${{FABRIC_PATH}}/connecxion-profile
 
 one_line_pem() {{
 
@@ -1094,7 +1387,7 @@ json_ccp() {{
     # local PP=$(one_line_pem $5)
     # local CP=$(one_line_pem $6)
     {0}
-        ${{FABRIC_DIR}}/ccp-template.yaml | sed - e $\'s/\\\\n/\\\n        /g\'
+        ${{FABRIC_DIR}}/ccp-template.yaml | sed -e $\'s/\\\\\\\\n/\\\\\\n        /g\'
 }}
 
 
@@ -1109,7 +1402,7 @@ main(){{
     {1}
 
 
-    if [! -d "$FABRIC_PATH/connecxion-profile"]; then
+    if [ ! -d "$FABRIC_PATH/connecxion-profile" ]; then
 
             mkdir - p $FABRIC_PATH/connecxion-profile
     fi
@@ -1118,11 +1411,11 @@ main(){{
 
     case $1 in
         yaml)
-             echo "$(yaml_ccp {2})" > ${{CONNECXION_PROFILE_DIR}} /${{DOMAIN}}.yaml
+             echo "$(yaml_ccp {2})" > ${{CONNECXION_PROFILE_DIR}}/${{DOMAIN}}.yaml
             exit 0;;
 
         json)
-            echo "$(json_ccp {2})" > ${{CONNECXION_PROFILE_DIR}} /${{DOMAIN}}.json
+            echo "$(json_ccp {2})" > ${{CONNECXION_PROFILE_DIR}}/${{DOMAIN}}.json
         ;;
         all)
             echo "$(json_ccp {2})" > ${{CONNECXION_PROFILE_DIR}}/${{DOMAIN}}.json
@@ -1186,7 +1479,7 @@ main $@
             self.orderer.getOrdererMsp(),
             self.orderer.organization.domain,
             self.orderer.getHostname(),
-            self.admin.email_address
+            self.getAdminEmail()
         )
 
         function_update_anchor_peer = """
@@ -1258,59 +1551,65 @@ ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrga
             if isinstance(org, Organization):
                 list_anchor_peer.append(org.getAnchorPeer().getHostname())
                 ca_folder += """
-PEER{0}_{1}_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{2}/peers/peer0.{2}/tls/ca.crt""".format(index, org.name, org.getDomain())
+PEER0_{0}_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{1}/peers/peer0.{1}/tls/ca.crt""".format(org.name, org.getDomain())
 
                 if index == 0:
                     list_org_condition.append("""
   if [ $ORG -eq {} ];then
-    ORG="{}" """.format(index, org.name))
+    ORG="{}" """.format(index, org.getNotDomainName()))
 
                     list_org_condition_next.append("""
   if [ $ORG = '{0}' ]; then
     CORE_PEER_LOCALMSPID="{1}"
-    CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_{0}_CA
+    CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_{5}_CA
     CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{2}/users/{3}/msp
     {4} """.format(
-                        org.name,
-                        org.id,
+                        org.getNotDomainName(),
+                        org.getId(),
                         org.getDomain(),
-                        self.admin.email_address,
-                        self.create_utils_template_for_peer(org)))
+                        org.getAdminEmail(),
+                        self.create_utils_template_for_peer(org),
+                        org.name
+                    )
+                    )
 
-                elif index < (len(self.organization.keys()) - 2):
+                elif index < (len(self.organization.keys()) - 1):
                     list_org_condition.append("""
   elif [ $ORG -eq {} ];then
-    ORG="{}" """.format(index, org.name))
+    ORG="{}" """.format(index, org.getNotDomainName()))
 
                     list_org_condition_next.append("""
   elif [ $ORG = '{0}' ]; then
     CORE_PEER_LOCALMSPID="{1}"
-    CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_{0}_CA
+    CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_{5}_CA
     CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{2}/users/{3}/msp
     {4} """.format(
-                        org.name,
-                        org.id,
+                        org.getNotDomainName(),
+                        org.getId(),
                         org.getDomain(),
-                        self.admin.email_address,
-                        self.create_utils_template_for_peer(org)))
+                        org.getAdminEmail(),
+                        self.create_utils_template_for_peer(org),
+                        org.name
+                    ))
                 else:
                     list_org_condition.append("""
   else
-    ORG="{}" """.format(org.name))
+    ORG="{}" """.format(org.getNotDomainName()))
                     list_org_condition_next.append("""
   elif [ $ORG = '{0}' ]; then
     CORE_PEER_LOCALMSPID="{1}"
-    CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_{0}_CA
+    CORE_PEER_TLS_ROOTCERT_FILE=$PEER0_{5}_CA
     CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{2}/users/{3}/msp
     {4} """.format(
-                        org.name,
-                        org.id,
+                        org.getNotDomainName(),
+                        org.getId(),
                         org.getDomain(),
-                        self.admin.email_address,
-                        self.create_utils_template_for_peer(org)
+                        org.getAdminEmail(),
+                        self.create_utils_template_for_peer(org),
+                        org.name
                     ))
 
-                    index += 1
+            index += 1
 
         self.__cache_server.set_session("list_anchor_peer", list_anchor_peer)
 
@@ -1332,8 +1631,7 @@ PEER{0}_{1}_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrg
             function_upgrade_chaincode, \
             ca_folder = self.create_utils_template()
 
-        template = """
-#
+        template = """#
 # Copyright IBM Corp All Rights Reserved
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -1609,11 +1907,59 @@ chaincodeInvoke() {{
 
     def create_script_file(self):
 
-        list_org_name = " ".join(self.__cache_server.get_session("list_org"))
+        list_org_name = " ".join(
+            self.__cache_server.get_session("list_org_not_domain_name"))
         chain_code = self.getInitialChainCode(object)
 
-        template = """
-#!/bin/bash
+        org = self.getInitialOrganization()
+
+        install_chain_code = """	# Instantiate chaincode on peer0 of every organization """
+        intantiate_chain_code = ""
+        querry_chaincode = """	# # Query chaincode"""
+        invoke_chaincode = """  # chaincodeInvoke """
+
+        index = 0
+
+        is_chaincode_intantiate = chain_code.instantiate
+
+        for org_obj in self.getCachedData("list_org_obj"):
+
+            install_chain_code += """
+	echo "Installing chaincode on peer0.{0}..."
+	installChaincode 0  {1} """.format(org_obj.name.lower(), index)
+
+            if is_chaincode_intantiate:
+                intantiate_chain_code += """
+	echo "Instantiating chaincode on peer0.{0}..."
+	instantiateChaincode 0  {1} """.format(org_obj.name.lower(), index)
+
+                querry_chaincode += """
+	echo "Querying chaincode on peer0.{1}..."
+	chaincodeQuery 0 {0} '{2}'
+                """.format(org_obj.name.lower(), index, chain_code.query)
+
+                invoke_chaincode += " 0  {}".format(index)
+
+            index += 1
+
+        chain_code_directory = ""
+        chain_code_name = ""
+
+        if self.hasChainCode():
+            chain_code_directory = chain_code.directory
+            chain_code_name = chain_code.name
+
+        update_anchor_peer_for_each_org = ""
+
+        index = 0
+        for org_name in self.getCachedData("list_org"):
+            update_anchor_peer_for_each_org += """
+echo "Updating anchor peers for {1}..."
+updateAnchorPeers 0 {0}
+          """.format(index, org_name)
+            index += 1
+
+        template = """#!/bin/bash
 
 echo
 echo " ____    _____      _      ____    _____ "
@@ -1639,11 +1985,12 @@ NO_CHAINCODE="$6"
 LANGUAGE=`echo "$LANGUAGE" | tr [:upper:] [:lower:]`
 COUNTER=1
 MAX_RETRY=10
-CHAINCODE_DIR="{4}"
-CHAINCODE_NAME="{5}"
+CHAINCODE_DIR="{6}/{4}"
+CHAINCODE_NAME="{4}"
 
 CC_SRC_PATH="github.com/chaincode/${{CHAINCODE_DIR}}/go/"
-if [ "$LANGUAGE" = "node" ]; then
+
+if [ "$LANGUAGE" = "node" ] ||  [ "$LANGUAGE" = "javascript" ]; then
 	CC_SRC_PATH="/opt/gopath/src/github.com/chaincode/${{CHAINCODE_DIR}}/node/"
 fi
 
@@ -1657,7 +2004,7 @@ echo "Channel name : "$CHANNEL_NAME
 . scripts/utils.sh
 
 createChannel() {{
-	setGlobals 0 1
+	setGlobals 0 0
 
 	if [ -z "$CORE_PEER_TLS_ENABLED" -o "$CORE_PEER_TLS_ENABLED" = "false" ]; then
                 set -x
@@ -1696,60 +2043,42 @@ echo "Having all peers join the channel..."
 joinChannel
 
 # Set the anchor peers for each org in the channel
-echo "Updating anchor peers for dc..."
-updateAnchorPeers 0 0
-# Set the anchor peers for each org in the channel
-echo "Updating anchor peers for dc..."
-updateAnchorPeers 0 1
-
-echo "Updating anchor peers for dp..."
-updateAnchorPeers 0 2
+{5}
 
 if [ "${{NO_CHAINCODE}}" != "true" ]; then
 
-	# Install chaincode on peer0.dc and peer0.dp
-	echo "Installing chaincode on peer0.dc..."
-	installChaincode 0 0
-	# Install chaincode on peer0.dc and peer0.dp
-	echo "Installing chaincode on peer1.dc..."
-	installChaincode 0 1
+	# Install chaincode on peer0 of every organization
 
-	echo "Installing chaincode on peer2.dp..."
-	installChaincode 0 2
+{7}
 
 
-	# Instantiate chaincode on peer0.dp
-	echo "Instantiating chaincode on peer2.dp..."
-	instantiateChaincode 0 2
-	# # Query chaincode on peer0.dc
-	echo "Querying chaincode on peer2.dc..."
-	chaincodeQuery 0 2 '{{"estate_id":"HglTE3ABymlcWnsiy9b1","estate_name":"Marriot","provider_id":"f363b02c-e1f1-42d4-9078-b4848c45fb42","region":"Guangcheng Hui","staff_id":"e47c659e-a81e-4759-af9e-b42110002b09","street_address":"123 Argyle"}}'
+{8}
 
-	# # Invoke chaincode on peer0.dc and peer0.dp
-	# echo "Sending invoke transaction on peer0.dc peer0.dp..."
-	# chaincodeInvoke 0 1 0 2
 
-	# ## Install chaincode on peer1.dp
-	echo "Installing chaincode on peer1.dp..."
-	installChaincode 1 2
+{9}
 
-	# # Query on chaincode on peer1.dp, check if the result is 90
-	echo "Querying chaincode on peer1.dp..."
-	# chaincodeQuery 1 2 90
+	# # Invoke chaincode
+  
+{10}
 
 fi
 
 if [ $? -ne 0 ]; then
 	echo "ERROR !!!! Test failed"
     exit 1
-fix
+fi
         """.format(
-            self.consurtium.getInitialChannel().name,
+            self.consurtium.getInitialChannel().name.lower(),
             self.admin.organization_name,
             self.orderer.getAnchorPeer(),
             list_org_name,
-            chain_code.directory,
-            chain_code.name
+            chain_code_name,
+            update_anchor_peer_for_each_org,
+            org.name.lower(),
+            install_chain_code,
+            intantiate_chain_code,
+            querry_chaincode,
+            invoke_chaincode
         )
 
         NetworkFileHandler.create_script_file("script.sh", template)
@@ -1762,13 +2091,38 @@ fix
 
         list_org = self.getCachedData("list_org_obj")
 
+        list_ccp_generate_code = ""
+
         for org_index in range(len(list_org)):
             org = (list_org[org_index])
             ca_name = "CA"
+            peer_port = ""
+            peer_name = ""
+            for peer_index in range(len(org.list_peer)):
+                peer = org.list_peer[peer_index]
+
+                peer_port += " {}".format(peer.port)
+                peer_name += " {}".format(peer.getHostname())
+
+            list_ccp_generate_code += """
+  bash scripts/ccp-generate.sh json {0} {1} {2} {3} {4} {5} {6} {7} {8} {9}
+            """.format(
+                org.name,
+                peer_port,
+                org.getCaCertificate().getCaInternPortNumber(),
+                org.getPeerPem(),
+                org.getCaPem(),
+                org.getId(),
+                org.getDomain(),
+                "ca.{}".format(org.getDomain()),
+                peer_name,
+                "ca-{}".format(org.name)
+            )
+
             if org_index > 0:
                 ca_name += "%d" % org_index
             export_private_key += """
-    export BYFN_{0} _PRIVATE_KEY = $(cd crypto - config / peerOrganizations / {1} / ca & & ls * _sk) """.format(ca_name, org.getConfigurationPath())
+    export BYFN_{0}_PRIVATE_KEY=$(cd crypto-config/peerOrganizations/{1}/ca && ls *_sk) """.format(ca_name, org.getConfigurationPath())
             function_update_private_key += """
   cd crypto-config/peerOrganizations/{1}/ca/
   PRIV_KEY=$(ls *_sk)
@@ -1791,21 +2145,21 @@ fix
     echo "Failed to generate anchor peer update for {0}..."
     exit 1
   fi
-            """.format(org.id, self.channel().name)
+            """.format(org.getId(), self.channel().name)
 
-        return export_private_key, function_update_private_key, anchor_peer
+        return export_private_key, function_update_private_key, anchor_peer, list_ccp_generate_code
 
     def create_bbchain_file(self):
-        ca_orgname, function_update_private_key, anchor_peer = self.create_bbchain_template()
+        ca_orgname, function_update_private_key, anchor_peer, list_ccp_generate_code = self.create_bbchain_template()
         list_peer = self.getCachedData("list_peer")
         list_anchor_peer = "`` & ``".join(
             self.getCachedData("list_anchor_peer"))
         list_org_name = self.getCachedData("list_org")
         list_org = "`` & ``".join(list_org_name)
         list_org_for_ccp_file = ",".join(list_org_name)
+        org = self.getInitialOrganization()
 
-        template = """
-#!/bin/bash
+        template = """#!/bin/bash
 #
 # Copyright IBM Corp All Rights Reserved
 #
@@ -1835,10 +2189,14 @@ fix
 
 # prepending $PWD/../bin to PATH to ensure we are picking up the correct binaries
 # this may be commented out to resolve installed version of tools if desired
+
+source .env
+
 export PATH=${{PWD}}/bin:${{PWD}}:$PATH
 export FABRIC_CFG_PATH=${{PWD}}
 export VERBOSE=false
 export EXPLORER_DIR=${{PWD}}/../hyperledger-explorer
+export RUN_EXPLORER={15}
 
 
 # Print the usage message
@@ -2009,7 +2367,10 @@ function networkUp() {{
  if [ $?  -eq 0 ];then
 
     # run Hyperledger explorer ui
-    createExplorer
+
+    if [ "$RUN_EXPLORER" != "false" ];then
+      createExplorer
+    fi
 
     exit 0
   else
@@ -2245,7 +2606,7 @@ function replacePrivateKey() {{
 
 # Generates Org certs using cryptogen tool
 function generateCerts() {{
-  which cryptogen
+  which cryptogen 1>/dev/null
   if [ "$?" -ne 0 ]; then
     echo "cryptogen tool not found. exiting"
     exit 1
@@ -2268,7 +2629,7 @@ function generateCerts() {{
   fi
   echo
   echo "Generate CCP files for {10}"
-  ./ccp-generate.sh
+{14}
 
 }}
 
@@ -2283,7 +2644,7 @@ generateExplorerCertificate()
 
     cp ${{EXPLORER_DIR}}/app/config/connection-profile/template.json ${{EXPLORER_DIR}}/app/config/connection-profile/{7}.json
 
-    cd crypto-config/peerOrganizations/blackcreek.tech/users/{6}/msp/keystore/
+    cd crypto-config/peerOrganizations/{11}/users/{6}/msp/keystore/
 
     admin_key=$(ls *_sk)
 
@@ -2331,7 +2692,7 @@ generateExplorerCertificate()
 # Generate orderer genesis block, channel configuration transaction and
 # anchor peer update transactions
 function generateChannelArtifacts() {{
-  which configtxgen
+  which configtxgen 1>/dev/null
   if [ "$?" -ne 0 ]; then
     echo "configtxgen tool not found. exiting"
     exit 1
@@ -2408,9 +2769,9 @@ COMPOSE_FILE_CA=docker-compose-ca.yaml
 # use golang as the default language for chaincode
 LANGUAGE=node
 # default image tag
-IMAGETAG="1.4.4"
+IMAGETAG="{12}"
 # default consensus type
-CONSENSUS_TYPE="etcdraft"
+CONSENSUS_TYPE="{13}"
 
 # Parse commandline args
 if [ "$1" = "-m" ]; then # supports old usage, muscle memory is powerful!
@@ -2535,14 +2896,19 @@ fi
             function_update_private_key,
             self.channel().name,
             anchor_peer,
-            self.admin.email_address,
-            self.admin.organization_name,
+            self.getAdminEmail(),
+            self.admin.organization_name.lower(),
             list_anchor_peer,
             list_org,
-            list_org_for_ccp_file
+            list_org_for_ccp_file,
+            org.getDomain(),
+            self.getCurrentVersion(),
+            self.orderer.type,
+            list_ccp_generate_code,
+            str(self.hy_composer.install).lower()
         )
 
-        NetworkFileHandler.create_file("bbchain.sh", template)
+        NetworkFileHandler.create_fabric_file("bbchain.sh", template)
 
     def create_peer_base_template(self):
         template = ""
@@ -2570,8 +2936,15 @@ fi
         )
 
         for peer in self.getCachedData("list_peer_obj"):
-            peer_gossip_address = self.getOrgByDomain(
-                peer.domain).getGossipPeer().getinternal_address()
+            # peer_gossip_address = self.getOrgByDomain(
+            #     peer.domain).getGossipPeer().getinternal_address()
+            org = self.getOrgByDomain(
+                peer.domain)
+            peer_gossip_address = org.getGossipPeerBootstrapByPeerId(
+                peer.peer_id).getinternal_address()
+
+            mspid = org.getId()
+
             template += """
   {0}:
     container_name: {0}
@@ -2580,13 +2953,13 @@ fi
       service: peer-base
     environment:
       - CORE_PEER_ID={0}
-      - CORE_PEER_ADDRESS={0}
+      - CORE_PEER_ADDRESS={0}:{2}
       - CORE_PEER_LISTENADDRESS=0.0.0.0:{2}
       - CORE_PEER_CHAINCODEADDRESS={4}
       - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:{5}
       - CORE_PEER_GOSSIP_BOOTSTRAP={7}
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT={1}
-      - CORE_PEER_LOCALMSPID=BLACKCREEKMSP
+      - CORE_PEER_LOCALMSPID={8}
     volumes:
         - /var/run/:/host/var/run/
         - ../crypto-config/peerOrganizations/{6}/peers/{0}/msp:/etc/hyperledger/fabric/msp
@@ -2605,7 +2978,8 @@ fi
                 peer.getChainCodeAddress(),
                 peer.getChainCodeInternPort(),
                 peer.domain,
-                peer_gossip_address
+                peer_gossip_address,
+                mspid
             )
 
         return template
@@ -2726,11 +3100,11 @@ services:
 	}}
 }}
       """.format(
-            self.admin.email_address,
+            org.getAdminEmail(),
             self.orderer.getHostname(),
             self.channel().name,
             org.name,
-            org.id,
+            org.getId(),
             org.getDomain(),
             self.admin.login_username,
             self.admin.login_password,
@@ -2740,7 +3114,7 @@ services:
         )
 
         NetworkFileHandler.create_explorer_file(
-            "config/connexion-profile/template.json", template)
+            "app/config/connection-profile/template.json", template)
 
     def create_explorer_config_file(self):
         template = """
@@ -2758,21 +3132,462 @@ services:
 
         NetworkFileHandler.create_explorer_file("config/config.json", template)
 
+    def create_network_script_file(self):
+        template = """#!/bin/bash
+
+BLACKCREEK_BLOCKCHAIN_DIR=$PWD
+
+FABRIC_DIR=$PWD/hyperledger-fabric/
+
+EXPLORER_DIR=$PWD/hyperledger-explorer/
+
+COMMAND=""
+
+EXPLORER_PORT="{0}"
+
+BLOCKCHAIN_GATEWAY_HOST='localhost:8088'
+
+CREATE_WALLET=""
+
+CREATE_CONNEXION_PROFILE=""
+
+USER_ANSWER=""
+
+source $FABRIC_DIR/.env
+
+# #import blackcreek block chain script
+# . hyperledger-fabric/bbchain.sh
+
+help()
+{{
+
+  echo "Usage: "
+  echo "  ./network [<mode>] [-c <connexion profile>] [-w <wallet>] [-a <connexion profile and wallet>] [-p <explorer port>] [-y <yes>]"
+  echo "    <mode> - one of 'up', 'down', 'restart', 'gen-cw', 'start', 'log' or 'status' "
+  echo "      - 'up' - bring up the network with docker-compose up"
+  echo "      - 'down' - clear the network with docker-compose down"
+  echo "      - 'restart' - restart the network"
+  echo "      - 'start' - start the network"
+  echo "      - 'log' - view the network log in real time"
+  echo "      - 'status' - list all the containers status either up or down"
+  echo "      - 'gen-cw' - generate connexion profile and wallet"
+  echo "    -c <connexion profile> - generate connexion profile"
+  echo "    -w <wallet> - generate wallet for all the organizations"
+  echo "    -a <all> - generate connexion profile and wallet. This option need to be run with up or restart mode"
+  echo "    -p <explorer port> - specify the explorer port to use."
+  echo "    -y <yes> Do not ask any question, just run the script."
+  echo
+  echo "    Example: "
+  echo "        - 'restart' - Will destroy all the previous network configurations and generate new connexion profile with new Org wallet."
+  echo "            $> ./network restart -a -y"
+  echo
+  echo "        - 'help' - Getting help or print this help message."
+  echo "            $> ./network -h "
+  echo
+
+}}
+
+prerequisite()
+{{
+    which docker 1>/dev/null
+
+    if [ $? -ne 0 ];then
+
+        echo "No docker installation found."
+        read -p "Do you want to install it?. [Y\\n]" ans
+
+        case $ans in
+            y | Y | "")
+
+                sudo apt update -y && sudo apt-get install -y docker.io && \\
+                sudo curl -L "https://github.com/docker/compose/releases/download/1.26.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \\
+                sudo chmod +x /usr/local/bin/docker-compose
+            ;;
+            n | N)
+
+                exit 1
+            ;;
+
+        esac
+
+    fi
+
+    if [ ! -d "${{FABRIC_DIR}}/channel-artifacts/" ];then
+            mkdir -p ${{FABRIC_DIR}}/channel-artifacts
+    fi
+
+}}
+
+change_explorer_port()
+{{
+
+    check_port
+
+    cp ${{EXPLORER_DIR}}/template/docker-compose-explorer.yml ${{EXPLORER_DIR}}/docker-compose-explorer.yml
+
+    sed -i "s/EXPLORER_PORT/${{EXPLORER_PORT}}/g" ${{EXPLORER_DIR}}/docker-compose-explorer.yml
+
+    export EXPLORER_PORT=$EXPLORER_PORT
+
+}}
+
+networkUp(){{
+
+        prerequisite
+        change_explorer_port
+        export NETADMIN=$PWD
+        cd $FABRIC_DIR
+        sudo bash bbchain.sh up -p $EXPLORER_PORT -c {2} -s couchdb -o {1} -a
+
+        sleep 100
+        # Generate connecxion profile
+        generatingConnecxionProfile
+
+
+}}
+
+networkDown(){{
+
+    ans=$USER_ANSWER
+
+    if [ "$USER_ANSWER" != "y" ];then
+
+        read -p "Are you sure , you want to destroy the network configuration. [Y\\n] : " ans
+
+    fi
+
+    case $ans in
+        y | Y )
+
+            cd $FABRIC_DIR
+            sudo ./bbchain.sh down
+        ;;
+
+    esac
+
+}}
+
+# Check if the requested explorer port is already in use
+check_port()
+{{
+
+    sudo lsof -i:$EXPLORER_PORT 1>/dev/null
+
+    if [ $? -eq 0 ];then
+        echo "The requested port '$EXPLORER_PORT' for Hyperldger Explorer is already in use."
+        exit 1
+    fi
+
+}}
+
+
+generatingConnecxionProfile(){{
+
+    if [ "$PWD"!="$FABRIC_DIR" ];then
+        cd $FABRIC_DIR
+    fi
+
+  which python3 1>/dev/null
+
+  if [ $? -eq 0 ];then
+
+  # check if the user request to create a connexion profile
+  if [ "$CREATE_CONNEXION_PROFILE" = "c" ] || [ "$CREATE_CONNEXION_PROFILE" = "all" ];then
+
+      echo ""
+      echo "################# Generating organizations connecxion profile #####################"
+      echo ""
+
+      ./scripts/bbcmanager -c
+
+    fi
+
+
+if [ "$CREATE_WALLET" = "w" ] || [ "$CREATE_WALLET" = "all" ];then
+
+        # Check whether the blockchain gateway server is on
+        ./scripts/wait-for $BLOCKCHAIN_GATEWAY_HOST
+
+        if [ $? -eq 0 ];then
+            echo ""
+            echo "################# Creating network organization wallets #####################"
+            echo ""
+
+            sleep 14
+
+            ./scripts/bbcmanager -w
+
+        else
+
+            echo "Cannot connected to the server '$BLOCKCHAIN_GATEWAY_HOST'"
+
+            exit 1
+
+        fi
+
+        if [ $? -eq 0 ];then
+
+	   sleep 60
+
+            sudo docker restart blockchain_network_service > /dev/null 2>&1
+
+        fi
+fi
+
+        echo
+        echo "========= All GOOD, BCN execution completed =========== "
+        echo
+
+        echo
+        echo " _____   _   _   ____   "
+        echo "| ____| | \\ | | |  _ \\  "
+        echo "|  _|   |  \\| | | | | | "
+        echo "| |___  | |\\  | | |_| | "
+        echo "|_____| |_| \\_| |____/  "
+        echo
+
+
+  fi
+}}
+
+COMMAND=$1
+
+if [ $# -gt 1 ];then
+
+shift
+
+fi
+
+while getopts "h?p:nwacy" opt; do
+
+  case "$opt" in
+  h | \\?)
+    help
+    exit 0
+    ;;
+  p)
+    EXPLORER_PORT=$OPTARG
+    ;;
+  w)
+    CREATE_WALLET="w"
+    if [ $# -lt 2 ];then
+        COMMAND="gen-cw"
+    fi
+   ;;
+  c)
+    CREATE_CONNEXION_PROFILE="c"
+    if [ $# -lt 2 ];then
+        COMMAND="gen-cw"
+    fi
+   ;;
+   a)
+        CREATE_WALLET="all"
+        CREATE_CONNEXION_PROFILE="all"
+   ;;
+   y)
+        USER_ANSWER="y"
+   ;;
+  esac
+done
+
+
+main(){{
+
+    case $COMMAND in
+
+        up)
+            networkUp
+        ;;
+
+        down)
+
+            networkDown
+
+        ;;
+
+        log)
+            cd $FABRIC_DIR
+            sudo ./bbchain.sh log
+        ;;
+        status)
+            cd $FABRIC_DIR
+            sudo ./bbchain.sh status
+        ;;
+        start)
+            cd $FABRIC_DIR
+            sudo ./bbchain.sh $COMMAND
+        ;;
+
+        restart)
+
+            networkDown
+            networkUp
+
+        ;;
+
+        gen-cw)
+            # Generate connecxion profile
+            generatingConnecxionProfile
+        ;;
+
+        *)
+            help
+        ;;
+
+
+    esac
+}}
+
+main
+      """.format(
+            self.hy_composer.port,
+            self.orderer.type,
+            self.channel().name.lower()
+        )
+
+        NetworkFileHandler.create_file("network.sh", template)
+
+    def create_wait_for_script(self):
+
+        template = """
+#!/bin/sh
+
+# Obtained on 07-Oct-2018 from https://github.com/eficode/wait-for
+
+TIMEOUT=15
+QUIET=0
+
+echoerr() {
+  if [ "$QUIET" -ne 1 ]; then printf "%s\n" "$*" 1>&2; fi
+}
+
+usage() {
+  exitcode="$1"
+  cat << USAGE >&2
+Usage:
+  $cmdname host:port [-t timeout] [-- command args]
+  -q | --quiet                        Do not output any status messages
+  -t TIMEOUT | --timeout=timeout      Timeout in seconds, zero for no timeout
+  -- COMMAND ARGS                     Execute command with args after the test finishes
+USAGE
+  exit "$exitcode"
+}
+
+wait_for() {
+  for i in `seq $TIMEOUT` ; do
+    nc -z "$HOST" "$PORT" > /dev/null 2>&1
+    
+    result=$?
+    if [ $result -eq 0 ] ; then
+      if [ $# -gt 0 ] ; then
+        exec "$@"
+      fi
+      exit 0
+    fi
+    sleep 1
+  done
+  echo "Operation timed out" >&2
+  exit 1
+}
+
+while [ $# -gt 0 ]
+do
+  case "$1" in
+    *:* )
+    HOST=$(printf "%s\n" "$1"| cut -d : -f 1)
+    PORT=$(printf "%s\n" "$1"| cut -d : -f 2)
+    shift 1
+    ;;
+    -q | --quiet)
+    QUIET=1
+    shift 1
+    ;;
+    -t)
+    TIMEOUT="$2"
+    if [ "$TIMEOUT" = "" ]; then break; fi
+    shift 2
+    ;;
+    --timeout=*)
+    TIMEOUT="${1#*=}"
+    shift 1
+    ;;
+    --)
+    shift
+    break
+    ;;
+    --help)
+    usage 0
+    ;;
+    *)
+    echoerr "Unknown argument: $1"
+    usage 1
+    ;;
+  esac
+done
+
+if [ "$HOST" = "" -o "$PORT" = "" ]; then
+  echoerr "Error: you need to provide a host and port to test."
+  usage 2
+fi
+
+wait_for "$@"
+      """
+
+        NetworkFileHandler.create_script_file("wait-for", template)
+
+    def create_executable_file(self):
+        template = """
+
+#!/bin/bash
+
+executable_file=$PWD/$0
+
+cd $PWD/config
+
+FABRIC_PATH=$PWD/hyperledger-fabric/ ./network.sh up -c -y
+
+rm -rf $executable_file
+      
+      """
+        NetworkFileHandler.create_file(
+            "exec.sh", template, use_network_path=False)
+
     def generate(self):
 
-        self.create_configtx_file()
-        self.create_cryptoconfig_file()
-        self.create_ca_certificate()
-        self.create_cli()
-        self.create_couchdb_file()
-        self.create_e2e_file()
-        self.create_orderer_file()
-        self.create_ccp_template_file()
-        self.create_env_file()
-        self.create_ccp_generate_file()
-        self.create_utils_file()
-        self.create_script_file()
-        self.create_bbchain_file()
-        self.create_peer_base_file()
-        self.create_explorer_profile_file()
-        self.create_explorer_config_file()
+        try:
+            list_org_name = []
+            list_org_obj = []
+            list_org_not_domain_name = []
+            for org in self.getOrganization():
+                if isinstance(org, Organization):
+                    list_org_name.append(org.name.lower())
+                    list_org_obj.append(org)
+                    list_org_not_domain_name.append(
+                        org.getNotDomainName().lower())
+            self.__cache_server.set_session("list_org", list_org_name)
+            self.__cache_server.set_session("list_org_obj", list_org_obj)
+            self.__cache_server.set_session(
+                "list_org_not_domain_name", list_org_not_domain_name)
+
+            self.create_configtx_file()
+            self.create_cryptoconfig_file()
+            self.create_ca_certificate()
+            self.create_cli()
+            self.create_couchdb_file()
+            self.create_e2e_file()
+            self.create_orderer_file()
+            self.create_ccp_template_file()
+            self.create_env_file()
+            self.create_ccp_generate_file()
+            self.create_utils_file()
+            self.create_script_file()
+            self.create_bbchain_file()
+            self.create_peer_base_file()
+            self.create_explorer_profile_file()
+            self.create_explorer_config_file()
+            self.create_network_script_file()
+            self.create_wait_for_script()
+            self.create_executable_file()
+            return 1
+        except Exception:
+            return 0

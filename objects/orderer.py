@@ -88,6 +88,8 @@ class Orderer(CapabilitiesHandler):
 
             if number_of_orderer == 0:
                 orderer_name = "orderer.{}".format(self.organization.domain)
+                number_of_orderer = 1
+
             else:
                 orderer_name = "orderer{}.{}".format(
                     number_of_orderer,
@@ -104,7 +106,7 @@ class Orderer(CapabilitiesHandler):
 
             number_of_orderer += 1
 
-    def getAllOrderer(self, number_of_orderer=0):
+    def getAllOrderer(self, number_of_orderer=2):
         for orderer_server in self.list_orderer[number_of_orderer:]:
             yield orderer_server
 
@@ -166,6 +168,7 @@ class Orderer(CapabilitiesHandler):
 
             if number_of_orderer == 0:
                 orderer_name = "orderer.{}".format(self.organization.domain)
+                number_of_orderer = 1
             else:
                 orderer_name = "orderer{}.{}".format(
                     number_of_orderer,
@@ -188,6 +191,7 @@ class Orderer(CapabilitiesHandler):
 
             if number_of_orderer == 0:
                 orderer_name = "orderer"
+                number_of_orderer = 1
             else:
                 orderer_name = "orderer{}".format(
                     number_of_orderer)
@@ -210,17 +214,19 @@ class Orderer(CapabilitiesHandler):
 
             if number_of_orderer == 0:
                 orderer_name = "orderer.{}".format(self.organization.domain)
+                number_of_orderer = 1
             else:
                 orderer_name = "orderer{}.{}".format(
                     number_of_orderer,
                     self.organization.domain)
 
-            app_str += """
-            {2}- Host: {0}
-            {2}  Port: {1}
-            {2}  ClientTLSCert: crypto-config/ordererOrganizations/blackcreek.tech/orderers/{0}/tls/server.crt
-            {2}  ServerTLSCert: crypto-config/ordererOrganizations/blackcreek.tech/orderers/{0}/tls/server.crt
-            """.format(orderer_name, port, padding_left)
+            app_str += """        
+                - Host: {0}
+                  Port: {1}
+                  ClientTLSCert: crypto-config/ordererOrganizations/blackcreek.tech/orderers/{0}/tls/server.crt
+                  ServerTLSCert: crypto-config/ordererOrganizations/blackcreek.tech/orderers/{0}/tls/server.crt
+
+            """.format(orderer_name, port)
 
             number_of_orderer += 1
 
@@ -286,16 +292,24 @@ Orderer: &{}
     # For Orderer policies, their canonical path is
     #   /Channel/Orderer/<PolicyName>
     Policies:
-        {}
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Admins"
         # BlockValidation specifies what signatures must be included in the block
         # from the orderer for the peer to validate it.
-        {}
+        BlockValidation:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
 
                 '''.format(self.name, self.type, self.address,
                            self.batch_timeout,
                            self.batch_size.dump(),
-                           self.create_consenter(),
-                           self.getAdminRolePolicies(),
-                           self.getBlockValidationPolicies())
+                           self.create_consenter())
 
         return datra_str

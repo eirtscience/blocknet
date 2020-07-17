@@ -1,5 +1,5 @@
 import re
-from os import system
+from os import system, path
 import subprocess
 
 
@@ -73,6 +73,17 @@ class Console:
             return False
         else:
             return self.get_bool(label)
+
+    @classmethod
+    def get_file(self, label):
+        path_to_file = Console.get_string(label)
+
+        if path.isfile(path_to_file):
+            file_content = ""
+            with open(path_to_file) as f:
+                file_content = f.read()
+            return file_content
+        self.get_file(label)
 
     @classmethod
     def choice(self, label, list_choice=None, default_choice=0, choice_pos=False):
