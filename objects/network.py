@@ -453,7 +453,7 @@ services:
       # - FABRIC_LOGGING_SPEC=DEBUG
       - FABRIC_LOGGING_SPEC=INFO
       - CORE_PEER_ID=cli
-      - CORE_PEER_ADDRESS={2}:7051
+      - CORE_PEER_ADDRESS={2}:{8}
       - CORE_PEER_LOCALMSPID={3}
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{6}/peers/{2}/tls/server.crt
@@ -507,7 +507,8 @@ services:
                    depends_on,
                    self.getAdminEmail().capitalize(),
                    org.getDomain(),
-                   chain_code_data
+                   chain_code_data,
+                   org.getAnchorPeer().intern_port
         )
 
         # with open(NetworkFileHandler.networkpath("docker-compose-cli.yaml"), "w") as f:
@@ -1268,8 +1269,7 @@ COMPOSE_HTTP_TIMEOUT=200
                    self.orderer.type,
                    chaincode_directory,
                    chaincode_language,
-                   self.name
-
+                   self.name.lower()
         )
 
         template_shell_exporter = """#!/bin/bash
@@ -1471,6 +1471,9 @@ main $@
         return "".join(list_peer_template)
 
     def create_utils_template(self):
+        chain_code = self.getInitialChainCode(return_type=object)
+        chaincode_query_request = chain_code.getChainCodeQueryRequest()
+
         function_orderer_global = """
   CORE_PEER_LOCALMSPID="{0}"
   CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/{1}/orderers/{2}/msp/tlscacerts/tlsca.{1}-cert.pem
@@ -1509,12 +1512,12 @@ main $@
   # the "-o" option
   if [ -z "$CORE_PEER_TLS_ENABLED" -o "$CORE_PEER_TLS_ENABLED" = "false" ]; then
     set -x
-    peer chaincode instantiate -o {0} -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} -l ${{LANGUAGE}} -v ${{VERSION}} -c '{{"function":"initLedger","Args":[]}}' -P "AND ('DCMSP.peer','DPMSP.peer')" >&log.txt
+    peer chaincode instantiate -o {0} -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} -l ${{LANGUAGE}} -v ${{VERSION}} -c '{1}' -P "AND ({2})" >&log.txt
     res=$?
     set +x
   else
     set -x
-    peer chaincode instantiate -o {0} --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} -l ${{LANGUAGE}} -v ${{VERSION}} -c '{{"function":"initLedger","Args":[]}}' -P "AND ('DCMSP.peer','DPMSP.peer')" >&log.txt
+    peer chaincode instantiate -o {0} --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} -l ${{LANGUAGE}} -v ${{VERSION}} -c '{1}' -P "AND ({2})" >&log.txt
     res=$?
     set +x
   fi
@@ -1522,7 +1525,7 @@ main $@
   verifyResult $res "Chaincode instantiation on peer${{PEER}}.${{ORG}} on channel '$CHANNEL_NAME' failed"
   echo "===================== Chaincode is instantiated on peer${{PEER}}.${{ORG}} on channel '$CHANNEL_NAME' ===================== "
   echo
-""".format(self.orderer.getAnchorPeer())
+""".format(self.orderer.getAnchorPeer(), chain_code.getIntantiate(), chain_code.getChainCodeOrg())
 
         function_upgrade_chaincode = """
   set -x
@@ -1619,7 +1622,7 @@ PEER0_{0}_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrgan
             function_update_anchor_peer, \
             function_instantiate_chaincode, \
             function_upgrade_chaincode, \
-            ca_folder
+            ca_folder, chaincode_query_request
 
     def create_utils_file(self):
 
@@ -1629,7 +1632,7 @@ PEER0_{0}_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrgan
             function_update_anchor_peer, \
             function_instantiate_chaincode, \
             function_upgrade_chaincode, \
-            ca_folder = self.create_utils_template()
+            ca_folder, chaincode_query_request = self.create_utils_template()
 
         template = """#
 # Copyright IBM Corp All Rights Reserved
@@ -1758,7 +1761,7 @@ chaincodeQuery() {{
     sleep $DELAY
     echo "Attempting to Query peer${{PEER}}.${{ORG}} ...$(($(date +%s) - starttime)) secs"
     set -x
-    peer chaincode query -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} -c '{{"function":"getSaveEstateByDp","Args":["f363b02c-e1f1-42d4-9078-b4848c45fb42"]}}' >&log.txt
+    peer chaincode query -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} -c '{8}' >&log.txt
     res=$?
     set +x
     test $res -eq 0 && VALUE=$(cat log.txt)
@@ -1877,12 +1880,12 @@ chaincodeInvoke() {{
   # it using the "-o" option
   if [ -z "$CORE_PEER_TLS_ENABLED" -o "$CORE_PEER_TLS_ENABLED" = "false" ]; then
     set -x
-    peer chaincode invoke -o {6} -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} $PEER_CONN_PARMS -c '{{"function":"getSaveEstateByDp","Args":["f363b02c-e1f1-42d4-9078-b4848c45fb42"]}}' >&log.txt
+    peer chaincode invoke -o {6} -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} $PEER_CONN_PARMS -c "{8}" >&log.txt
     res=$?
     set +x
   else
     set -x
-    peer chaincode invoke -o {6} --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} $PEER_CONN_PARMS -c '{{"function":"getSaveEstateByDp","Args":["f363b02c-e1f1-42d4-9078-b4848c45fb42"]}}' >&log.txt
+    peer chaincode invoke -o {6} --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C $CHANNEL_NAME -n ${{CHAINCODE_NAME}} $PEER_CONN_PARMS -c "{8}" >&log.txt
     res=$?
     set +x
   fi
@@ -1898,7 +1901,8 @@ chaincodeInvoke() {{
             function_instantiate_chaincode,
             function_upgrade_chaincode,
             self.orderer.getAnchorPeer(),
-            ca_folder)
+            ca_folder,
+            chaincode_query_request)
 
         NetworkFileHandler.create_script_file("utils.sh", template)
 
@@ -1928,15 +1932,15 @@ chaincodeInvoke() {{
 	echo "Installing chaincode on peer0.{0}..."
 	installChaincode 0  {1} """.format(org_obj.name.lower(), index)
 
-            if is_chaincode_intantiate:
+            if is_chaincode_intantiate and (org_obj.has_chain_code):
                 intantiate_chain_code += """
 	echo "Instantiating chaincode on peer0.{0}..."
 	instantiateChaincode 0  {1} """.format(org_obj.name.lower(), index)
 
                 querry_chaincode += """
-	echo "Querying chaincode on peer0.{1}..."
-	chaincodeQuery 0 {0} '{2}'
-                """.format(org_obj.name.lower(), index, chain_code.query)
+	echo "Querying chaincode on peer0.{0}..."
+	chaincodeQuery 0 {1} '{2}'
+                """.format(org_obj.name.lower(), index, chain_code.getChainCodeQueryResponse())
 
                 invoke_chaincode += " 0  {}".format(index)
 
@@ -2058,7 +2062,7 @@ if [ "${{NO_CHAINCODE}}" != "true" ]; then
 {9}
 
 	# # Invoke chaincode
-  
+
 {10}
 
 fi
@@ -3153,6 +3157,8 @@ CREATE_CONNEXION_PROFILE=""
 
 USER_ANSWER=""
 
+RUN_EXPLORER={3}
+
 source $FABRIC_DIR/.env
 
 # #import blackcreek block chain script
@@ -3239,7 +3245,7 @@ networkUp(){{
         cd $FABRIC_DIR
         sudo bash bbchain.sh up -p $EXPLORER_PORT -c {2} -s couchdb -o {1} -a
 
-        sleep 100
+
         # Generate connecxion profile
         generatingConnecxionProfile
 
@@ -3297,6 +3303,10 @@ generatingConnecxionProfile(){{
       echo ""
       echo "################# Generating organizations connecxion profile #####################"
       echo ""
+
+      if [ "$RUN_EXPLORER" == "true" ];then
+        sleep 100
+      fi
 
       ./scripts/bbcmanager -c
 
@@ -3442,7 +3452,8 @@ main
       """.format(
             self.hy_composer.port,
             self.orderer.type,
-            self.channel().name.lower()
+            self.channel().name.lower(),
+            self.hy_composer.install
         )
 
         NetworkFileHandler.create_file("network.sh", template)
@@ -3554,40 +3565,37 @@ rm -rf $executable_file
 
     def generate(self):
 
-        try:
-            list_org_name = []
-            list_org_obj = []
-            list_org_not_domain_name = []
-            for org in self.getOrganization():
-                if isinstance(org, Organization):
-                    list_org_name.append(org.name.lower())
-                    list_org_obj.append(org)
-                    list_org_not_domain_name.append(
-                        org.getNotDomainName().lower())
-            self.__cache_server.set_session("list_org", list_org_name)
-            self.__cache_server.set_session("list_org_obj", list_org_obj)
-            self.__cache_server.set_session(
-                "list_org_not_domain_name", list_org_not_domain_name)
+        list_org_name = []
+        list_org_obj = []
+        list_org_not_domain_name = []
+        for org in self.getOrganization():
+            if isinstance(org, Organization):
+                list_org_name.append(org.name.lower())
+                list_org_obj.append(org)
+                list_org_not_domain_name.append(
+                    org.getNotDomainName().lower())
+        self.__cache_server.set_session("list_org", list_org_name)
+        self.__cache_server.set_session("list_org_obj", list_org_obj)
+        self.__cache_server.set_session(
+            "list_org_not_domain_name", list_org_not_domain_name)
 
-            self.create_configtx_file()
-            self.create_cryptoconfig_file()
-            self.create_ca_certificate()
-            self.create_cli()
-            self.create_couchdb_file()
-            self.create_e2e_file()
-            self.create_orderer_file()
-            self.create_ccp_template_file()
-            self.create_env_file()
-            self.create_ccp_generate_file()
-            self.create_utils_file()
-            self.create_script_file()
-            self.create_bbchain_file()
-            self.create_peer_base_file()
-            self.create_explorer_profile_file()
-            self.create_explorer_config_file()
-            self.create_network_script_file()
-            self.create_wait_for_script()
-            self.create_executable_file()
-            return 1
-        except Exception:
-            return 0
+        self.create_configtx_file()
+        self.create_cryptoconfig_file()
+        self.create_ca_certificate()
+        self.create_cli()
+        self.create_couchdb_file()
+        self.create_e2e_file()
+        self.create_orderer_file()
+        self.create_ccp_template_file()
+        self.create_env_file()
+        self.create_ccp_generate_file()
+        self.create_utils_file()
+        self.create_script_file()
+        self.create_bbchain_file()
+        self.create_peer_base_file()
+        self.create_explorer_profile_file()
+        self.create_explorer_config_file()
+        self.create_network_script_file()
+        self.create_wait_for_script()
+        self.create_executable_file()
+        return 1

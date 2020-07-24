@@ -20,6 +20,7 @@ class Organization(Common):
         self.mspdirfolder = None
         self.cacertificate = None
         self.index = index
+        self.has_chain_code = False
 
     def getId(self):
         return "{}MSP".format(self.name)

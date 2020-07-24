@@ -8,6 +8,7 @@ from objects.network_file_handler import NetworkFileHandler
 from os import walk, path, makedirs
 import subprocess
 from sys import exit
+import json
 
 
 network = Network()
@@ -190,30 +191,71 @@ def add_chaincode():
     if generate_chaincode == "yes":
         data = {}
         network.orderer.generate_chainecode = True
-        data["name"] = Console.get_string("Name", must_supply=True)
+        chaincode_name = Console.get_string("Name", must_supply=True)
         data["language"] = Console.choice("Language", list_choice=[
             "go", "node", "java"])
-        data["directory"] = Console.get_string("Directory", must_supply=True)
+        data["directory"] = Console.get_string(
+            "Directory (Use the absolute path)", must_supply=True)
+
+        data["chaincode_org"] = []
+
+        for org in network.getOrganization():
+            is_select = Console.get_bool(
+                "Do you want to run this chaincode for organization '{}' ".format(org.name))
+            if is_select:
+                data["chaincode_org"].append("'{}.peer'".format(org.getId()))
+                org.has_chain_code = True
+
+        can_instantiate_chaincode = False
 
         if not path.isdir(data["directory"]):
+
             Console.run("sudo mkdir -p {}".format(data["directory"]))
 
-        can_instantiate_chaincode = Console.get_bool(
-            "Do you want to instantiate the chaincode ?")
+        else:
 
+            init_json_file = path.join(data["directory"], "init.json")
+
+            if path.isfile(init_json_file):
+                with open(path.join(data["directory"], "init.json")) as json_file:
+                    init_json_data = json.load(json_file)
+
+                data["directory"] += "/{}".format(chaincode_name)
+
+                chaincode_data = init_json_data[chaincode_name]
+
+                if chaincode_data.get("instantiate") is not None:
+                    can_instantiate_chaincode = True
+
+                data["function"] = chaincode_data.get(
+                    "instantiate")
+
+                data["querry_chaincode"] = chaincode_data.get("query")
+
+            else:
+                Console.error("Cannot find the chaincode init file")
+
+                can_instantiate_chaincode = Console.get_bool(
+                    "Do you want to instantiate the chaincode ?")
+
+                data["instantiate_chaincode"] = can_instantiate_chaincode
+
+                if can_instantiate_chaincode:
+                    chaincode_function = Console.get_file("Please input a json file with the init function of your chaincode \n Example: \
+                        {\"function\":\"initLedger\",\"Args\":[]}")
+                    data["function"] = chaincode_function
+
+                    querry_chaincode = Console.get_file(
+                        "Please input a json file with the response data to verify the querry result")
+
+                    data["querry_chaincode"] = querry_chaincode
+
+        data["name"] = chaincode_name
         data["instantiate_chaincode"] = can_instantiate_chaincode
 
-        if can_instantiate_chaincode:
-            chaincode_function = Console.get_file("Please input a json file with the init function of your chaincode \n Example: \
-                {\"function\":\"initLedger\",\"Args\":[]}")
-            data["function"] = chaincode_function
-
-            querry_chaincode = Console.get_file(
-                "Please input a json file with the response data to verify the querry result")
-
-            data["querry_chaincode"] = querry_chaincode
-
         network.addChainCode(data["name"], data)
+
+        # print(network.orderer.getInitialChainCode().getIntantiate())
 
     else:
         network.orderer.generate_chainecode = False

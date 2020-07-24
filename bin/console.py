@@ -130,3 +130,7 @@ class Console:
             subprocess.call(script, shell=True)
         except FileNotFoundError:
             system(script)
+
+    @classmethod
+    def error(self, value):
+        print("[Error]: {}".format(value))
