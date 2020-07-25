@@ -25,11 +25,26 @@ class NetworkAdministrator(Organization):
         self.first_name = data.get("first_name")
         self.domain = data.get("domain")
         self.last_name = data.get("last_name")
-        self.email_address = data.get("email_address").capitalize()
+        self.email_address = None
         self.organization_name = data.get("organization_name")
-        self.login_username = data.get("login_name")
-        self.login_password = data.get("login_password")
+        self.login_username = data.get("login_name") or "admin"
+        self.login_password = data.get("login_password") or "adminpw"
         self.organization = None
+        self.__Hydrade(data)
+
+    def __Hydrade(self, data):
+        if data.get("email_address"):
+            self.email_address = data.get("email_address").capitalize()
+
+    def getOrganizationName(self):
+        if self.organization_name == None:
+            return (self.domain.split(".")[0]).upper()
+        return self.organization_name
+
+    def getEmailAddress(self):
+        if self.email_address == None:
+            return (self.login_username.lower() + "@" + self.domain.lower()).capitalize()
+        return self.email_address
 
 
 class Network:
@@ -50,7 +65,55 @@ class Network:
         self.hy_composer = None
         self.__cache_server = CacheServer()
 
+    def create_network_init_file(self):
+        template = """
+{
+  "network": {
+    "name": "ExampleNetwork",
+    "admin": {
+      "first_name": "",
+      "last_name": "",
+      "login_name": "admin",
+      "domain": "example.com",
+      "login_password": "adminpwd"
+    },
+    "channel": {
+      "name": "ExampleChannel"
+    },
+    "orderer": {
+      "type": "etcdraft",
+      "number": 5
+    }
+  },
+  "chaincode": {
+    "name": "example_chaincode",
+    "directory": "",
+    "language": "node"
+  },
+  "org": [
+    {
+      "name": "ORG1",
+      "domain": "org1.example.com",
+      "number_of_peer": 2
+    },
+    {
+      "name": "ORG2",
+      "domain": "org2.example.com",
+      "number_of_peer": 2,
+      "has_chaincode": true
+    }
+  ],
+  "explorer": {
+    "install": false
+  }
+}
+      """
+
+        NetworkFileHandler.create_file("network.json", template, False)
+
     def getCurrentVersion(self):
+        if self.current_version == None:
+            self.current_version = list(self.list_version.keys())[0]
         return self.current_version.replace("_", ".").strip("V")
 
     def add_hy_composer(self, data):
@@ -127,7 +190,7 @@ class Network:
     def addnetwork_admin(self, data):
         self.admin = NetworkAdministrator(data)
         self.genesis = Genesis(
-            (self.admin.organization_name.lower()).capitalize())
+            (self.admin.getOrganizationName().lower()).capitalize())
 
         # organization = Organization(
         #     self.admin.organization_name, domain=self.admin.domain, type_org="admin", has_anchor=True)
@@ -135,7 +198,7 @@ class Network:
         # organization.addAllPeers(data.get("number_of_peer"))
         # self.addorg(organization=organization)
 
-        #self.admin.organization = organization
+        # self.admin.organization = organization
 
     def getAdminOrg(self):
         '''
@@ -1236,7 +1299,7 @@ certificateAuthorities:
             NetworkFileHandler.create_fabric_file(file_name, template_data)
 
     def create_env_file(self):
-        image_tag = self.current_version.replace("_", ".").strip("V")
+        image_tag = self.getCurrentVersion()
 
         ischaincode_exist, chaincode, chaincode_directory, chaincode_language = self.getInitialChainCode()
 
@@ -2073,7 +2136,7 @@ if [ $? -ne 0 ]; then
 fi
         """.format(
             self.consurtium.getInitialChannel().name.lower(),
-            self.admin.organization_name,
+            self.admin.getOrganizationName(),
             self.orderer.getAnchorPeer(),
             list_org_name,
             chain_code_name,
@@ -2901,7 +2964,7 @@ fi
             self.channel().name,
             anchor_peer,
             self.getAdminEmail(),
-            self.admin.organization_name.lower(),
+            self.admin.getOrganizationName().lower(),
             list_anchor_peer,
             list_org,
             list_org_for_ccp_file,
@@ -3132,14 +3195,14 @@ services:
 
 "license": "Apache-2.0"
 }}
-      """.format(self.admin.organization_name.lower())
+      """.format(self.admin.getOrganizationName().lower())
 
         NetworkFileHandler.create_explorer_file("config/config.json", template)
 
     def create_network_script_file(self):
         template = """#!/bin/bash
 
-BLACKCREEK_BLOCKCHAIN_DIR=$PWD
+BLOCKCHAIN_DIR=$PWD
 
 FABRIC_DIR=$PWD/hyperledger-fabric/
 
@@ -3161,7 +3224,7 @@ RUN_EXPLORER={3}
 
 source $FABRIC_DIR/.env
 
-# #import blackcreek block chain script
+# #import blockchain script
 # . hyperledger-fabric/bbchain.sh
 
 help()

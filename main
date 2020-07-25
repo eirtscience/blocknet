@@ -2,7 +2,7 @@
 
 import requests
 from optparse import OptionParser
-from bin.fabricnetwork import start
+from blocknet.bin.fabricnetwork import start
 
 
 def main():

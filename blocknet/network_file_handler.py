@@ -5,9 +5,11 @@ import subprocess
 
 class NetworkFileHandler:
 
+    INSTALL_DIR = "config/"
+
     @staticmethod
     def networkpath(file_name):
-        path_file = path.join("config/", file_name)
+        path_file = path.join(NetworkFileHandler.INSTALL_DIR, file_name)
         directory_path = path.dirname(path_file)
         if not path.isdir(directory_path):
             NetworkFileHandler.__create_dir(directory_path)
@@ -50,8 +52,8 @@ class NetworkFileHandler:
 
     @staticmethod
     def create_directory():
-        config_path = "config/"
-        # "explorer/config/connexion-profile/"
+
+        config_path = NetworkFileHandler.INSTALL_DIR
 
         list_dir = ["hyperledger-fabric/", "hyperledger-explorer/", "hyperledger-fabric/base/", "hyperledger-fabric/scripts/",
                     "hyperledger-explorer/config/"]

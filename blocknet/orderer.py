@@ -223,10 +223,10 @@ class Orderer(CapabilitiesHandler):
             app_str += """        
                 - Host: {0}
                   Port: {1}
-                  ClientTLSCert: crypto-config/ordererOrganizations/blackcreek.tech/orderers/{0}/tls/server.crt
-                  ServerTLSCert: crypto-config/ordererOrganizations/blackcreek.tech/orderers/{0}/tls/server.crt
+                  ClientTLSCert: crypto-config/ordererOrganizations/{2}/orderers/{0}/tls/server.crt
+                  ServerTLSCert: crypto-config/ordererOrganizations/{2}/orderers/{0}/tls/server.crt
 
-            """.format(orderer_name, port)
+            """.format(orderer_name, port, self.organization.domain)
 
             number_of_orderer += 1
 

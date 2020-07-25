@@ -6,6 +6,7 @@ import subprocess
 from os import sys, path
 
 import zipfile
+from .network_file_handler import NetworkFileHandler
 
 
 class FabricRepo:
@@ -13,7 +14,9 @@ class FabricRepo:
     def __init__(self, version_number):
         self.version = version_number
 
-    def getRepoByVersion(self, installation_folder="config/"):
+    def getRepoByVersion(self):
+
+        installation_folder = NetworkFileHandler.INSTALL_DIR
 
         if not path.isdir(path.join(installation_folder, "hyperledger-fabric/")):
 

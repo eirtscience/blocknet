@@ -113,15 +113,27 @@ class Console:
     def get_list_input(self, list_label, type_input="str"):
 
         list_label_input = {}
-        while list_label:
-            input_label = list_label.pop(0)
 
-            input_data = Console.get_string(
-                input_label, must_supply=True)
+        if isinstance(list_label, list):
+            while list_label:
+                input_label = list_label.pop(0)
 
-            input_label = input_label.lower().replace(' ', '_').strip()
+                input_data = Console.get_string(
+                    input_label, must_supply=True)
 
-            list_label_input[input_label] = input_data
+                input_label = input_label.lower().replace(' ', '_').strip()
+
+                list_label_input[input_label] = input_data
+
+        if isinstance(list_label, dict):
+            for input_label, value in list_label.items():
+                input_label = (input_label.replace(
+                    '_', ' ').strip()).capitalize()
+                input_data = Console.get_string(
+                    input_label, must_supply=True, default=value)
+                input_label = input_label.lower().replace(' ', '_').strip()
+                list_label_input[input_label] = input_data
+
         return list_label_input
 
     @classmethod

@@ -1,0 +1,40 @@
+{
+  "network": {
+    "name": "ExampleNetwork",
+    "admin": {
+      "first_name": "",
+      "last_name": "",
+      "login_name": "admin",
+      "domain": "example.com",
+      "login_password": "adminpwd"
+    },
+    "channel": {
+      "name": "ExampleChannel"
+    },
+    "orderer": {
+      "type": "etcdraft",
+      "number": 5
+    }
+  },
+  "chaincode": {
+    "name": "blackcreek_estate",
+    "directory": "/home/blackcreek/Project/blackcreek/blackcreek-chaincode_network/blackcreek",
+    "language": "node"
+  },
+  "org": [
+    {
+      "name": "ORG1",
+      "domain": "org1.example.com",
+      "number_of_peer": 2
+    },
+    {
+      "name": "ORG2",
+      "domain": "org2.example.com",
+      "number_of_peer": 2,
+      "has_chaincode": true
+    }
+  ],
+  "explorer": {
+    "install": false
+  }
+}
