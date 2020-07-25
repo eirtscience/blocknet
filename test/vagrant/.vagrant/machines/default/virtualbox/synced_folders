@@ -1,1 +1,0 @@
-{"virtualbox":{"/project/config/":{"guestpath":"/project/config","hostpath":"/home/blackcreek/Project/blockchain-network/config","disabled":false,"__vagrantfile":true},"/vagrant":{"guestpath":"/vagrant","hostpath":"/home/blackcreek/Project/blockchain-network/test/vagrant","disabled":false,"__vagrantfile":true}}}
