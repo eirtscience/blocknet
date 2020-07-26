@@ -14,45 +14,109 @@ class FabricRepo:
     def __init__(self, version_number):
         self.version = version_number
 
+    def create_installer_script(self):
+        template = """#!/bin/bash
+
+BLOCKNET_PATH=""
+
+prerequisite(){
+
+  can_run=0
+
+  which docker 1> /dev/null
+
+  if [ ! $? -eq 0 ];then
+      sudo apt-get install -y docker.io 
+  fi
+
+  which docker-compose 1> /dev/null
+
+  if [ ! $? -eq 0 ];then
+
+    sudo curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+
+  fi
+
+  which git 1> /dev/null
+
+  if [ ! $? -eq 0 ];then
+    sudo apt-get install -y git
+  fi
+
+}
+
+download(){
+
+  git clone https://github.com/hyperledger-fabric/file.git
+
+  mv file/* .
+  rm -rf file/
+  rm -rf .git/
+  rm -rf images/
+
+  install_python_package
+
+  # export BLOCKNET_PATH=`pwd`
+}
+
+install_python_package(){
+
+    echo '''
+certifi==2020.6.20
+chardet==3.0.4
+console==0.990
+ezenv==0.91
+idna==2.10
+pyaml==20.4.0
+python-git==2018.2.1
+PyYAML==5.3.1
+requests==2.24.0
+Send2Trash==1.5.0
+urllib3==1.25.9
+wget==3.2
+zipfile36==0.1.3
+blocknet==0.0.1
+    ''' > packages.txt
+
+    pip install -r packages.txt
+}
+
+clean(){
+    rm -rf installer.sh
+    rm -rf packages.txt
+}
+
+install(){
+
+    prerequisite
+    download
+    clean
+}
+
+main(){
+  case $1 in
+    check-env)
+        prerequisite
+    ;;
+    install)
+        install $@
+    ;;
+  esac
+
+
+  
+}
+
+main $@
+        """
+
+        NetworkFileHandler.create_file("installer.sh", template)
+
     def getRepoByVersion(self):
 
         installation_folder = NetworkFileHandler.INSTALL_DIR
 
         if not path.isdir(path.join(installation_folder, "hyperledger-fabric/")):
-
-            version_num = (self.version.replace("_", ".")).lower()
-
-            plaform_repo = "https://github.com/hyperledger-fabric/file/archive/master.zip"
-
-            download_file = wget_download(
-                plaform_repo, out="/tmp/master.zip", bar=bar_thermometer)
-
-            zip_file = zipfile.ZipFile(download_file)
-
-            zip_file.extractall(path="/tmp/master")
-
-            zip_file.close()
-
-            subprocess.call(
-                "mv /tmp/master/file-master/* {}".format(installation_folder), shell=True)
-
-            repo = "https://github.com/hyperledger/fabric-samples/archive/{}.tar.gz".format(
-                version_num)
-
-            download_file = wget_download(
-                repo, out="/tmp/fabric-{}.tar.gz".format(version_num), bar=bar_thermometer)
-
-            tar = tarfile.open(download_file)
-
-            tar.extractall(path="/tmp/fabric-repo/")
-            tar.close()
-
-            tmp_download = "/tmp/fabric-repo/fabric-samples-{}/".format(
-                version_num.strip("v"))
-
-            fabric_first_network = "{}/first-network".format(tmp_download)
-
-            subprocess.call(
-                "mv {}/* {}hyperledger-fabric".format(fabric_first_network, installation_folder), shell=True)
-
-            print()
+            self.create_installer_script()
+            subprocess.call("./installer.sh install", shell=True)

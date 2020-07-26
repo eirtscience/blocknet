@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Fangnikoue Evarist",
     author_email="malevae@gmail.com",
-    description="A script to Bring up a Hyperledger Fabric network",
+    description="A script to Bring up a Hyperledger Fabric network with your own org setting.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/eirtscience/blocknet",

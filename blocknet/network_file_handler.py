@@ -5,7 +5,7 @@ import subprocess
 
 class NetworkFileHandler:
 
-    INSTALL_DIR = "config/"
+    INSTALL_DIR = "./"
 
     @staticmethod
     def networkpath(file_name):
