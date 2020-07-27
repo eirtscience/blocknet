@@ -3,3 +3,6 @@ test/
 *network.*
 config-template/
 todo
+dist/
+bloacknet.egg.info/
+
