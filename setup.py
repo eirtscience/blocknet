@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="blocknet",  # Replace with your own username
-    version="0.0.1",
+    version="0.0.2.a",
     author="Fangnikoue Evarist",
     author_email="malevae@gmail.com",
     description="A script to Bring up a Hyperledger Fabric network with your own org setting.",
