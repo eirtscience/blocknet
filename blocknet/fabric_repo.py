@@ -54,10 +54,11 @@ download(){
   rm -rf file/
   rm -rf .git/
   rm -rf images/
+  rm -rf README.md
 
   install_python_package
 
-  # export BLOCKNET_PATH=`pwd`
+  export BLOCKNET_PATH=`pwd`
 }
 
 install_python_package(){
@@ -91,6 +92,7 @@ install(){
 
     prerequisite
     download
+    sudo touch ~/.blocknet
     clean
 }
 
@@ -115,8 +117,6 @@ main $@
 
     def getRepoByVersion(self):
 
-        installation_folder = NetworkFileHandler.INSTALL_DIR
-
-        if not path.isdir(path.join(installation_folder, "hyperledger-fabric/")):
+        if not path.isfile("~/.blocknet"):
             self.create_installer_script()
             subprocess.call("./installer.sh install", shell=True)
