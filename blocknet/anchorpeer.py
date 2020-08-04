@@ -15,3 +15,26 @@ class AnchorPeer:
                 self.org_name.lower(), self.server.host)
 
         return "\n\n\n\t\t\t- Host: {}.{}\n\t\t\t  Port: {}".format(self.name, self.server.host, self.server.port)
+
+    def test_unit(self):
+        '''
+         @apiReturn {  Number }
+        '''
+        print("hi there ")
+        return
+
+    def test_unit_1(self, test1, test2):
+        '''
+         @apiParam {String} [firstname]
+
+         @apiParam {String} [lastname]
+
+         @apiReturn {Boolean} [True]
+        '''
+        pass
+
+    def test_unit_2(self, test1, test2):
+        '''
+         @apiReturn {Number} [5]
+        '''
+        pass

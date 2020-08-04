@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: blocknet
-Version: 0.0.1a0
+Version: 0.0.2
 Summary: A script to Bring up a Hyperledger Fabric network with your own org setting.
 Home-page: https://github.com/eirtscience/blocknet
 Author: Fangnikoue Evarist
